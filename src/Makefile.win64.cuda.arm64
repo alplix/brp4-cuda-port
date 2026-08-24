@@ -1,0 +1,159 @@
+###########################################################################
+#   BRP4 (Binary Radio Pulsar Search) - CUDA variant
+#   Cross build: Windows ARM64 (aarch64) host, built inside WSL/Ubuntu
+#   using llvm-mingw (clang/lld COFF toolchain).
+#
+#   Why this exists:
+#     NVIDIA announced Windows-on-ARM laptops with Blackwell-class GPUs
+#     (N1X / N1, sm_120). CUDA ships no windows-arm64 toolkit pieces yet,
+#     so the host code is cross-compiled here while the device fatbins are
+#     reused from the x86_64 build - fatbin device images are OS-agnostic.
+#     nvcuda.dll and cufft64_11.dll import libraries are generated locally
+#     with llvm-dlltool from .def files extracted from the x86_64 exe's
+#     import table (see scripts/wa_imports.sh + src/win_arm64/*.def).
+#
+#   Runtime caveats (documented in the dist README):
+#     - needs a WoARM64 machine with an NVIDIA GPU (e.g. future N1X devices)
+#       and a driver that installs nvcuda.dll for ARM64 (>= v616.00)
+#     - NVIDIA publishes no cufft64_11.dll for windows-arm64 yet; until one
+#       appears (or is shipped by a driver), the exe will not load it
+#
+#   Prerequisites (inside WSL Ubuntu):
+#     llvm-mingw 20260616 at /opt/llvm-mingw            (host compiler)
+#     CUDA 12.9 linux-aarch64 redist at /opt/cuda129-arm64/root (headers)
+#     static deps at /root/wa/deps                      (zlib iconv xml2 gsl fftw3f)
+#     BOINC libs   at /root/wa/brp4-install-arm64       (wa_boinc.sh)
+#     import libs  at /root/wa/imports                  (llvm-dlltool output)
+#     prebuilt db.fat/dbhs.fat from the x86_64 Windows build tree
+#
+#   Build:
+#     make -f Makefile.win64.cuda.arm64 \
+#          EINSTEIN_RADIO_SRC=<src dir> EINSTEIN_RADIO_INSTALL=<boinc install>
+###########################################################################
+
+# path settings
+EINSTEIN_RADIO_SRC?=$(PWD)
+EINSTEIN_RADIO_INSTALL?=/root/wa/brp4-install-arm64
+DEPS_DIR?=/root/wa/deps
+IMPORT_DIR?=/root/wa/imports
+FATBIN_SRC?=/mnt/c/Users/Alp/brp4-src
+CUDA_HOME?=/opt/cuda129-arm64/root
+
+# config values
+CXX?=/opt/llvm-mingw/bin/aarch64-w64-mingw32-g++
+
+# GPU architecture coverage lives inside the prebuilt fatbins
+# (SASS 50 61 75 86 89 90 120 + PTX compute_50); nothing to do here.
+
+# variables
+CPPFLAGS += -DHAVE_INLINE -DBOINCIFIED -DUSE_CUDA $(CPPFLAGS_EXTRA)
+CPPFLAGS += -I$(EINSTEIN_RADIO_INSTALL)/include
+CPPFLAGS += -I$(EINSTEIN_RADIO_INSTALL)/include/boinc
+CPPFLAGS += -I"$(CUDA_HOME)/include"
+CPPFLAGS += -I$(DEPS_DIR)/include/libxml2
+CPPFLAGS += -I$(DEPS_DIR)/include
+# libxml2 is linked statically, so its headers must not dllimport
+CPPFLAGS += -DLIBXML_STATIC
+
+CXXFLAGS_COMMON = $(CPPFLAGS)
+# pre-C++17 keeps std::byte from clashing with rpcndr.h's byte typedef
+# pulled in by Windows/BOINC headers
+CXXFLAGS_CPP = $(CXXFLAGS_BASE) $(CXXFLAGS_COMMON) -std=gnu++14
+
+# distribution layout: executable only. Everything links statically except
+# nvcuda.dll (GPU driver) and cufft64_11.dll (no arm64 build published yet).
+LIBS  = -L$(EINSTEIN_RADIO_INSTALL)/lib
+LIBS += -lboinc_api -lboinc
+LIBS += -Wl,-Bstatic
+LIBS += -L$(DEPS_DIR)/lib
+LIBS += -lgsl -lgslcblas -lfftw3f -lxml2 -lz -liconv -lcharset -lbcrypt
+LIBS += -Wl,-Bdynamic
+LIBS += "$(IMPORT_DIR)/nvcuda.dll.a"
+LIBS += "$(IMPORT_DIR)/cufft64_11.dll.a"
+LIBS += -lws2_32 -lpsapi
+
+LDFLAGS = -static-libgcc -static-libstdc++
+
+# absolute so the same makefile also works out-of-tree
+DEPS := $(firstword $(MAKEFILE_LIST))
+OBJS  = demod_binary.o hs_common.o rngmed.o erp_getopt.o erp_getopt1.o
+OBJS += erp_utilities.o erp_boinc_ipc.o cuda_utilities.o exchndl_stub.o
+OBJS += demod_binary_cuda.cuda.o demod_binary_hs_cuda.cuda.o
+# PTX modules embedded into the executable (see loadPtxModule)
+OBJS += db_dev.o dbhs_dev.o
+
+TARGET ?= einsteinbinary_BRP4_windows_arm64_cuda_custom.exe
+
+# primary role based targets
+default: release
+debug: CXXFLAGS_BASE=-DLOGLEVEL=debug -O3 -Wall
+debug: $(TARGET)
+release: CXXFLAGS_BASE=-DNDEBUG -DLOGLEVEL=info -O3 -Wall
+release: $(TARGET)
+
+# generated version headers (created once, kept if present)
+$(EINSTEIN_RADIO_SRC)/erp_git_version.h:
+	@echo "#ifndef ERP_GIT_VERSION_H" > $@
+	@echo "#define ERP_GIT_VERSION_H" >> $@
+	@echo "#define ERP_GIT_VERSION \"v1.0 | BRP4 CUDA port by Alperen Yavuz\"" >> $@
+	@echo "" >> $@
+	@echo "#endif" >> $@
+
+$(EINSTEIN_RADIO_SRC)/svn_version.h:
+	@echo "#ifndef SVN_VERSION_H" > $@
+	@echo "#define SVN_VERSION_H" >> $@
+	@echo "#define SVN_VERSION \"BRP4 CUDA port by Alperen Yavuz\"" >> $@
+	@echo "#endif" >> $@
+
+# plain C/C++ objects
+%.o: $(EINSTEIN_RADIO_SRC)/%.c $(DEPS)
+	$(CXX) $(CXXFLAGS_BASE) $(CXXFLAGS_COMMON) -c $< -o $@
+
+%.o: $(EINSTEIN_RADIO_SRC)/%.cpp $(DEPS)
+	$(CXX) $(CXXFLAGS_CPP) -c $< -o $@
+
+cuda_utilities.o: $(EINSTEIN_RADIO_SRC)/cuda/app/cuda_utilities.c $(EINSTEIN_RADIO_SRC)/cuda/app/cuda_utilities.h $(DEPS)
+	$(CXX) $(CXXFLAGS_BASE) $(CXXFLAGS_COMMON) -c $< -o $@
+
+# CUDA host objects: .cu files are plain driver-API C++ for the host side;
+# all device-only content is guarded by __CUDACC__ and skipped by g++
+demod_binary_cuda.cuda.o: $(EINSTEIN_RADIO_SRC)/cuda/app/demod_binary_cuda.cu $(EINSTEIN_RADIO_SRC)/cuda/app/demod_binary_cuda.cuh $(DEPS)
+	$(CXX) $(CXXFLAGS_CPP) -x c++ -c $< -o $@
+
+demod_binary_hs_cuda.cuda.o: $(EINSTEIN_RADIO_SRC)/cuda/app/demod_binary_hs_cuda.cu $(DEPS)
+	$(CXX) $(CXXFLAGS_CPP) -x c++ -c $< -o $@
+
+# device modules: reuse the multi-arch fatbins from the x86_64 Windows
+# build - device SASS/PTX images are OS-agnostic and already cover
+# sm_50..sm_120 (+ compute_50 PTX for JIT on newer GPUs)
+db.fat: $(FATBIN_SRC)/db.fat $(DEPS)
+	cp $< $@
+
+dbhs.fat: $(FATBIN_SRC)/dbhs.fat $(DEPS)
+	cp $< $@
+
+# embed a fatbin into an object file; GNU ld's "-r -b binary" trick does
+# not exist in lld/COFF, so use assembler .incbin instead. The symbol
+# names must match the extern declarations in demod_binary_cuda.cu /
+# demod_binary_hs_cuda.cu (_binary_<name>_<start|end>).
+db_dev.o: db.fat
+	@printf '%s\n' '.section .rodata' '.balign 8' '.global _binary_db_fat_start' '_binary_db_fat_start:' '.incbin "db.fat"' '.global _binary_db_fat_end' '_binary_db_fat_end:' > $@.s
+	$(CXX) -c $@.s -o $@
+	@rm -f $@.s
+
+dbhs_dev.o: dbhs.fat
+	@printf '%s\n' '.section .rodata' '.balign 8' '.global _binary_dbhs_fat_start' '_binary_dbhs_fat_start:' '.incbin "dbhs.fat"' '.global _binary_dbhs_fat_end' '_binary_dbhs_fat_end:' > $@.s
+	$(CXX) -c $@.s -o $@
+	@rm -f $@.s
+
+$(TARGET): $(DEPS) $(EINSTEIN_RADIO_SRC)/erp_git_version.h $(EINSTEIN_RADIO_SRC)/svn_version.h $(EINSTEIN_RADIO_SRC)/erp_boinc_wrapper.cpp $(OBJS)
+	$(CXX) $(CXXFLAGS_CPP) $(LDFLAGS) $(EINSTEIN_RADIO_SRC)/erp_boinc_wrapper.cpp -o $(TARGET) $(OBJS) $(LIBS)
+
+install: $(TARGET)
+	mkdir -p $(EINSTEIN_RADIO_INSTALL)/../dist
+	cp $(TARGET) $(EINSTEIN_RADIO_INSTALL)/../dist
+
+clean:
+	rm -f $(OBJS) $(TARGET) db.fat dbhs.fat
+
+.PHONY: default debug release install clean

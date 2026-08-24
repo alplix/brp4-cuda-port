@@ -1,0 +1,11 @@
+--- boinc_api.h
++++ boinc_api.h	2012-02-23 14:01:20.262908148 +0100
+@@ -18,6 +18,8 @@
+ #ifndef _BOINC_API_
+ #define _BOINC_API_
+ 
++#include <cstddef>
++
+ #ifdef _WIN32
+ #include "boinc_win.h"
+ #endif

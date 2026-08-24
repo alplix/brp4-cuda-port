@@ -1,0 +1,190 @@
+###########################################################################
+#   BRP4 (Binary Radio Pulsar Search) - CUDA variant
+#   Native Windows x86_64 build using MSYS2 MinGW-w64 gcc + NVIDIA nvcc
+#
+#   Modernized for CUDA 12.x+ / Blackwell (sm_120):
+#     - legacy texture references replaced by module globals (__ldg)
+#     - deprecated cuParamSet*/cuLaunchGrid* replaced by cuLaunchKernel
+#     - cuPrintf removed, cufftSetCompatibilityMode removed
+#
+#   Build architecture:
+#     * host code (.c/.cpp/.cu host parts)  -> MSYS2 mingw64 g++
+#         (.cu files are plain driver-API C++ now; device sections are
+#          guarded by __CUDACC__ and invisible to g++)
+#     * device modules -> NVIDIA nvcc -fatbin with multi-arch gencode:
+#         native SASS for every supported generation (no driver JIT) plus
+#         lowest-arch PTX so future GPUs keep working
+#     * fatbin images are embedded into the executable with "ld -r -b binary"
+#       and loaded via loadPtxModule() (cuModuleLoadData)
+#
+#   Distribution (same layout as the official EAH Windows CUDA apps):
+#     einsteinbinary_*.exe + NVIDIA's cufft64_11.dll. cuFFT is the only
+#     remaining dynamic dependency because NVIDIA doesn't provide a static
+#     cuFFT on Windows. Everything else (gsl, fftw, xml2, zlib, iconv,
+#     bcrypt, winpthread, boinc, cudart-free driver API app code) is linked
+#     statically. nvcuda.dll comes with the GPU driver itself.
+#
+#   One-time setup inside an MSYS2 MINGW64 shell:
+#     pacman -S make mingw-w64-x86_64-gcc \
+#                mingw-w64-x86_64-fftw mingw-w64-x86_64-gsl \
+#                mingw-w64-x86_64-libxml2 mingw-w64-x86_64-zlib
+#     # NVIDIA components (no installer needed):
+#     #   C:/Users/Alp/cuda-toolkit/tk            (nvcc + headers + libdevice)
+#     #   C:/Users/Alp/cuda-toolkit/cuda_nvcc-.../bin/nvcc.exe
+#     # Visual Studio Build Tools (host compiler required by nvcc):
+#     #   winget install Microsoft.VisualStudio.2022.BuildTools
+#
+#   BOINC libraries (once):
+#     cd <boinc checkout>/lib && BOINC_PREFIX=<install-dir> \
+#         make -f Makefile.mingw install
+#
+#   Build:
+#     make -f Makefile.win64.cuda \
+#          EINSTEIN_RADIO_SRC=<src dir> EINSTEIN_RADIO_INSTALL=<install dir>
+###########################################################################
+
+# path settings
+EINSTEIN_RADIO_SRC?=$(PWD)
+EINSTEIN_RADIO_INSTALL?=$(PWD)/../install
+CUDA_HOME?=C:/Users/Alp/cuda-toolkit/tk
+CUFFT_HOME?=C:/Users/Alp/cuda-toolkit/libcufft-windows-x86_64-11.4.1.4-archive
+CUFFT_DLL?=cufft64_11.dll
+NVCC_BIN?=C:/Users/Alp/cuda-toolkit/cuda_nvcc-windows-x86_64-12.9.86-archive/bin/nvcc.exe
+FATBINARY_BIN?=C:/Users/Alp/cuda-toolkit/cuda_nvcc-windows-x86_64-12.9.86-archive/bin/fatbinary.exe
+MSVC_BIN?=C:/Program Files (x86)/Microsoft Visual Studio/2022/BuildTools/VC/Tools/MSVC/14.44.35207/bin/Hostx64/x64
+
+# config values
+CXX?=g++
+
+# GPU architecture coverage (forum distribution):
+#   SASS_ARCHES -> machine code sections embedded in the fatbin; each listed
+#                  generation loads natively with zero JIT overhead
+#   PTX_ARCH    -> lowest supported virtual arch; its PTX is embedded too, so
+#                  ANY newer GPU (incl. ones not yet existing) JIT-compiles it
+#   sm_50 Maxwell | sm_61 Pascal | sm_75 Turing | sm_86 Ampere |
+#   sm_89 Ada     | sm_90 Hopper | sm_120 Blackwell
+#   Note: Kepler (sm_35, e.g. GT 710) is not supported here - it needs a
+#   separate CUDA 11.8 legacy build (drivers capped at R470 cannot run
+#   CUDA 12.x binaries either)
+SASS_ARCHES?=50 61 75 86 89 90 120
+PTX_ARCH?=50
+
+GENCODES = $(foreach a,$(SASS_ARCHES),-gencode arch=compute_$(a),code=sm_$(a))
+GENCODES += -gencode arch=compute_$(PTX_ARCH),code=compute_$(PTX_ARCH)
+
+# device-only (-fatbin) builds never invoke the host compiler, so overriding
+# its version check is safe; needed for the legacy CUDA 11.8 build whose
+# supported MSVC range predates the installed Build Tools
+NVCC_EXTRA?=--allow-unsupported-compiler
+
+# variables
+CPPFLAGS += -DHAVE_INLINE -DBOINCIFIED -DUSE_CUDA $(CPPFLAGS_EXTRA)
+CPPFLAGS += -I$(EINSTEIN_RADIO_INSTALL)/include
+CPPFLAGS += -I$(EINSTEIN_RADIO_INSTALL)/include/boinc
+CPPFLAGS += -I"$(CUDA_HOME)/include"
+CPPFLAGS += -I"C:/Users/Alp/cuda-toolkit/libcufft-windows-x86_64-11.4.1.4-archive/include"
+CPPFLAGS += -I/mingw64/include/libxml2
+# libxml2 is linked statically, so its headers must not dllimport
+CPPFLAGS += -DLIBXML_STATIC
+
+CXXFLAGS_COMMON = $(CPPFLAGS)
+# pre-C++17 keeps std::byte from clashing with rpcndr.h's byte typedef
+# pulled in by Windows/BOINC headers
+CXXFLAGS_CPP = $(CXXFLAGS_BASE) $(CXXFLAGS_COMMON) -std=gnu++14
+
+# distribution layout: the executable plus NVIDIA's cufft64_11.dll
+# (no static cuFFT exists on Windows; same as official EAH CUDA apps).
+# Everything else is static; nvcuda.dll comes with the GPU driver.
+LIBS  = -L$(EINSTEIN_RADIO_INSTALL)/lib
+LIBS += -lboinc_api -lboinc
+LIBS += -Wl,-Bstatic
+LIBS += -lgsl -lgslcblas -lfftw3f -lxml2 -lz -liconv -lbcrypt
+LIBS += -Wl,-Bdynamic
+LIBS += "$(CUDA_HOME)/lib/libcuda.dll.a"
+LIBS += "$(CUFFT_HOME)/lib/x64/cufft.lib"
+LIBS += -lws2_32 -lpsapi
+# gcc's mingw spec appends its own dynamic -lpthread after these, so force
+# every member of the static winpthread archive in; nothing left undefined
+# means the implicit import library is skipped entirely
+LIBS += -Wl,-Bstatic,--whole-archive -lwinpthread -Wl,--no-whole-archive,-Bdynamic
+
+LDFLAGS = -static-libgcc -static-libstdc++
+
+# absolute so the same makefile also works out-of-tree (legacy variant builds)
+DEPS := $(firstword $(MAKEFILE_LIST))
+OBJS  = demod_binary.o hs_common.o rngmed.o erp_getopt.o erp_getopt1.o
+OBJS += erp_utilities.o erp_boinc_ipc.o cuda_utilities.o exchndl_stub.o
+OBJS += demod_binary_cuda.cuda.o demod_binary_hs_cuda.cuda.o
+# PTX modules embedded into the executable (see loadPtxModule)
+OBJS += db_dev.o dbhs_dev.o
+
+TARGET ?= einsteinbinary_win_x86_64_cuda_custom.exe
+
+# primary role based targets
+default: release
+debug: CXXFLAGS_BASE=-DLOGLEVEL=debug -O3 -Wall
+debug: NVCCFLAGS_BASE=-DLOGLEVEL=debug -O3
+debug: $(TARGET)
+release: CXXFLAGS_BASE=-DNDEBUG -DLOGLEVEL=info -O3 -Wall
+release: NVCCFLAGS_BASE=-DNDEBUG -O3
+release: $(TARGET)
+
+# generated version headers (created once, kept if present)
+$(EINSTEIN_RADIO_SRC)/erp_git_version.h:
+	@echo "#ifndef ERP_GIT_VERSION_H" > $@
+	@echo "#define ERP_GIT_VERSION_H" >> $@
+	@echo "#define ERP_GIT_VERSION \"v1.0 | BRP4 CUDA port by Alperen Yavuz\"" >> $@
+	@echo "" >> $@
+	@echo "#endif" >> $@
+
+$(EINSTEIN_RADIO_SRC)/svn_version.h:
+	@echo "#ifndef SVN_VERSION_H" > $@
+	@echo "#define SVN_VERSION_H" >> $@
+	@echo "#define SVN_VERSION \"BRP4 CUDA port by Alperen Yavuz\"" >> $@
+	@echo "#endif" >> $@
+
+# plain C/C++ objects
+%.o: $(EINSTEIN_RADIO_SRC)/%.c $(DEPS)
+	$(CXX) $(CXXFLAGS_BASE) $(CXXFLAGS_COMMON) -c $< -o $@
+
+%.o: $(EINSTEIN_RADIO_SRC)/%.cpp $(DEPS)
+	$(CXX) $(CXXFLAGS_CPP) -c $< -o $@
+
+cuda_utilities.o: $(EINSTEIN_RADIO_SRC)/cuda/app/cuda_utilities.c $(EINSTEIN_RADIO_SRC)/cuda/app/cuda_utilities.h $(DEPS)
+	$(CXX) $(CXXFLAGS_BASE) $(CXXFLAGS_COMMON) -c $< -o $@
+
+# CUDA host objects: .cu files are plain driver-API C++ for the host side;
+# all device-only content is guarded by __CUDACC__ and skipped by g++
+demod_binary_cuda.cuda.o: $(EINSTEIN_RADIO_SRC)/cuda/app/demod_binary_cuda.cu $(EINSTEIN_RADIO_SRC)/cuda/app/demod_binary_cuda.cuh $(DEPS)
+	$(CXX) $(CXXFLAGS_CPP) -x c++ -c $< -o $@
+
+demod_binary_hs_cuda.cuda.o: $(EINSTEIN_RADIO_SRC)/cuda/app/demod_binary_hs_cuda.cu $(DEPS)
+	$(CXX) $(CXXFLAGS_CPP) -x c++ -c $< -o $@
+
+# device modules: one multi-arch fatbin per module (SASS for all supported
+# generations + lowest-arch PTX for forward compatibility), embedded into the
+# executable; cuModuleLoadData lets the driver pick the native SASS section
+db.fat: $(EINSTEIN_RADIO_SRC)/cuda/app/demod_binary_cuda.cu $(EINSTEIN_RADIO_SRC)/cuda/app/demod_binary_cuda.cuh $(DEPS)
+	"$(NVCC_BIN)" -fatbin $(NVCCFLAGS_BASE) -DUSE_CUDA "-I$(CUDA_HOME)/include" "-I$(CUFFT_HOME)/include" "-I$(EINSTEIN_RADIO_SRC)" "--compiler-bindir=$(MSVC_BIN)" $(GENCODES) $(NVCC_EXTRA) $< -o $@
+
+db_dev.o: db.fat
+	ld -r -b binary db.fat -o $@
+
+dbhs.fat: $(EINSTEIN_RADIO_SRC)/cuda/app/demod_binary_hs_cuda.cu $(EINSTEIN_RADIO_SRC)/cuda/app/harmonic_summing_kernel.cuh $(DEPS)
+	"$(NVCC_BIN)" -fatbin $(NVCCFLAGS_BASE) -DUSE_CUDA "-I$(CUDA_HOME)/include" "-I$(CUFFT_HOME)/include" "-I$(EINSTEIN_RADIO_SRC)" "--compiler-bindir=$(MSVC_BIN)" $(GENCODES) $(NVCC_EXTRA) $< -o $@
+
+dbhs_dev.o: dbhs.fat
+	ld -r -b binary dbhs.fat -o $@
+
+$(TARGET): $(DEPS) $(EINSTEIN_RADIO_SRC)/erp_git_version.h $(EINSTEIN_RADIO_SRC)/svn_version.h $(EINSTEIN_RADIO_SRC)/erp_boinc_wrapper.cpp $(OBJS)
+	$(CXX) $(CXXFLAGS_CPP) $(LDFLAGS) $(EINSTEIN_RADIO_SRC)/erp_boinc_wrapper.cpp -o $(TARGET) $(OBJS) $(LIBS)
+
+install: $(TARGET)
+	mkdir -p $(EINSTEIN_RADIO_INSTALL)/../dist
+	cp $(TARGET) $(EINSTEIN_RADIO_INSTALL)/../dist
+	cp "$(CUFFT_HOME)/bin/$(CUFFT_DLL)" $(EINSTEIN_RADIO_INSTALL)/../dist
+
+clean:
+	rm -f $(OBJS) $(TARGET) db.fat dbhs.fat
+
+.PHONY: default debug release install clean

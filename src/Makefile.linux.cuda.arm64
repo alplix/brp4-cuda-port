@@ -1,0 +1,140 @@
+###########################################################################
+#   BRP4 (Binary Radio Pulsar Search) - CUDA variant, Linux aarch64
+#   CROSS build from an x86_64 host for NVIDIA ARM64 devices (Jetson etc.)
+#
+#   Differences vs Makefile.linux.cuda:
+#     * CUDA toolkit: aarch64 redist merge at /opt/cuda129-arm64/root
+#       (nvcc/cicc themselves are aarch64 ELF binaries - they run through
+#        qemu-user binfmt registered on the host; the HOST compiler given
+#        via --compiler-bindir is the NATIVE cross gcc producing aarch64)
+#     * BOINC libs: hand-compiled aarch64 archives in brp4-install-arm64
+#     * no bfd/libiberty/libsframe for arm64 in Ubuntu multiarch -> the
+#       crash handler uses compat/execinfo_stub.c instead of
+#       erp_execinfo_plus.c (prints raw symbols, no addr2line)
+#     * SASS coverage targets the Tegra/Jetson family:
+#         sm_53 (X1), 62 (Xavier), 72 (Xavier NX/AGX), 87 (Orin),
+#         90 (Grace Hopper / Thor class) + compute_53 PTX for forward JIT
+#
+#   One-time setup (see scripts/README.md):
+#     dpkg --add-architecture arm64 + ports.ubuntu.com sources
+#     apt install qemu-user qemu-user-binfmt crossbuild-essential-arm64 \
+#                 g++-14-aarch64-linux-gnu \
+#                 lib{gsl,xml2,z,lzma,zstd,ssl,fftw3}*-dev:arm64
+#
+#   Build:
+#     make -f Makefile.linux.cuda.arm64 \
+#          EINSTEIN_RADIO_SRC=<src dir> EINSTEIN_RADIO_INSTALL=<install dir>
+###########################################################################
+
+# path settings
+EINSTEIN_RADIO_SRC?=$(PWD)
+EINSTEIN_RADIO_INSTALL?=/root/build/brp4-install-arm64
+CUDA_HOME?=/opt/cuda129-arm64/root
+BOINC_SRC?=/root/build/3rdparty/boinc-current_brp_apps
+
+NVCC_BIN?=$(CUDA_HOME)/bin/nvcc
+NVCC_HOSTCXX?=/usr/bin/aarch64-linux-gnu-g++-14
+
+SASS_ARCHES?=53 62 72 87 90
+PTX_ARCH?=53
+
+GENCODES = $(foreach a,$(SASS_ARCHES),-gencode arch=compute_$(a),code=sm_$(a))
+GENCODES += -gencode arch=compute_$(PTX_ARCH),code=compute_$(PTX_ARCH)
+
+NVCC_EXTRA?=-U_GNU_SOURCE --allow-unsupported-compiler
+
+CXX?=aarch64-linux-gnu-g++-14
+
+CPPFLAGS += -DHAVE_INLINE -DBOINCIFIED -DUSE_CUDA $(CPPFLAGS_EXTRA)
+CPPFLAGS += -I$(EINSTEIN_RADIO_INSTALL)/include
+CPPFLAGS += -I$(EINSTEIN_RADIO_INSTALL)/include/boinc
+CPPFLAGS += -I$(CUDA_HOME)/include
+CPPFLAGS += -I/usr/include/libxml2
+CPPFLAGS += -I$(BOINC_SRC)
+CPPFLAGS += -I$(EINSTEIN_RADIO_SRC)/compat
+
+CXXFLAGS_COMMON = $(CPPFLAGS)
+CXXFLAGS_CPP = $(CXXFLAGS_BASE) $(CXXFLAGS_COMMON) -std=gnu++14
+
+LIBS  = -L$(EINSTEIN_RADIO_INSTALL)/lib
+LIBS += -Wl,-Bstatic -lboinc_api_arm64 -lboinc_arm64 -Wl,-Bdynamic
+LIBS += -Wl,-Bstatic -lgsl -lgslcblas -lfftw3f -lxml2 -llzma -lzstd -lz -Wl,-Bdynamic
+CUFFT_STATIC?=lib/libcufft_static_nocallback.a
+ifeq ($(CUFFT_SHARED),1)
+LIBS += -L$(CUDA_HOME)/lib -lcufft
+LDFLAGS += -Wl,-rpath,'$$ORIGIN'
+else
+LIBS += $(CUDA_HOME)/$(CUFFT_STATIC) $(CUDA_HOME)/lib/libculibos.a
+endif
+LIBS += $(LIBS_EXTRA)
+LIBS += -L$(CUDA_HOME)/lib/stubs -lcuda
+LIBS += -lpthread -ldl -lrt -lm
+
+LDFLAGS += -static-libgcc -static-libstdc++
+
+DEPS := $(firstword $(MAKEFILE_LIST))
+OBJS  = demod_binary.o hs_common.o rngmed.o erp_getopt.o erp_getopt1.o
+OBJS += erp_utilities.o erp_boinc_ipc.o cuda_utilities.o execinfo_stub.o
+OBJS += demod_binary_cuda.cuda.o demod_binary_hs_cuda.cuda.o
+OBJS += db_dev.o dbhs_dev.o
+
+TARGET ?= einsteinbinary_BRP4_linux_aarch64_cuda_custom
+
+default: release
+debug: CXXFLAGS_BASE=-DLOGLEVEL=debug -O3 -Wall
+debug: NVCCFLAGS_BASE=-DLOGLEVEL=debug -O3
+debug: $(TARGET)
+release: CXXFLAGS_BASE=-DNDEBUG -DLOGLEVEL=info -O3 -Wall
+release: NVCCFLAGS_BASE=-DNDEBUG -O3
+release: $(TARGET)
+
+$(EINSTEIN_RADIO_SRC)/erp_git_version.h:
+	@echo "#ifndef ERP_GIT_VERSION_H" > $@
+	@echo "#define ERP_GIT_VERSION_H" >> $@
+	@echo "#define ERP_GIT_VERSION \"v1.0 | BRP4 CUDA port by Alperen Yavuz\"" >> $@
+	@echo "" >> $@
+	@echo "#endif" >> $@
+
+$(EINSTEIN_RADIO_SRC)/svn_version.h:
+	@echo "#ifndef SVN_VERSION_H" > $@
+	@echo "#define SVN_VERSION_H" >> $@
+	@echo "#define SVN_VERSION \"BRP4 CUDA port by Alperen Yavuz\"" >> $@
+	@echo "#endif" >> $@
+
+%.o: $(EINSTEIN_RADIO_SRC)/%.c $(DEPS)
+	$(CXX) $(CXXFLAGS_BASE) $(CXXFLAGS_COMMON) -c $< -o $@
+
+%.o: $(EINSTEIN_RADIO_SRC)/%.cpp $(DEPS)
+	$(CXX) $(CXXFLAGS_CPP) -c $< -o $@
+
+cuda_utilities.o: $(EINSTEIN_RADIO_SRC)/cuda/app/cuda_utilities.c $(EINSTEIN_RADIO_SRC)/cuda/app/cuda_utilities.h $(DEPS)
+	$(CXX) $(CXXFLAGS_BASE) $(CXXFLAGS_COMMON) -c $< -o $@
+
+execinfo_stub.o: $(EINSTEIN_RADIO_SRC)/compat/execinfo_stub.c $(EINSTEIN_RADIO_SRC)/erp_execinfo_plus.h $(DEPS)
+	$(CXX) $(CXXFLAGS_BASE) $(CXXFLAGS_COMMON) -I$(EINSTEIN_RADIO_SRC) -c $< -o $@
+
+demod_binary_cuda.cuda.o: $(EINSTEIN_RADIO_SRC)/cuda/app/demod_binary_cuda.cu $(EINSTEIN_RADIO_SRC)/cuda/app/demod_binary_cuda.cuh $(DEPS)
+	$(CXX) $(CXXFLAGS_CPP) -x c++ -c $< -o $@
+
+demod_binary_hs_cuda.cuda.o: $(EINSTEIN_RADIO_SRC)/cuda/app/demod_binary_hs_cuda.cu $(DEPS)
+	$(CXX) $(CXXFLAGS_CPP) -x c++ -c $< -o $@
+
+db.fat: $(EINSTEIN_RADIO_SRC)/cuda/app/demod_binary_cuda.cu $(EINSTEIN_RADIO_SRC)/cuda/app/demod_binary_cuda.cuh $(DEPS)
+	$(NVCC_BIN) -fatbin $(NVCCFLAGS_BASE) -DUSE_CUDA "-I$(CUDA_HOME)/include" "--compiler-bindir=$(NVCC_HOSTCXX)" "-I$(EINSTEIN_RADIO_SRC)" $(GENCODES) $(NVCC_EXTRA) $< -o $@
+
+db_dev.o: db.fat
+	aarch64-linux-gnu-ld -r -b binary db.fat -o $@
+
+dbhs.fat: $(EINSTEIN_RADIO_SRC)/cuda/app/demod_binary_hs_cuda.cu $(EINSTEIN_RADIO_SRC)/cuda/app/harmonic_summing_kernel.cuh $(DEPS)
+	$(NVCC_BIN) -fatbin $(NVCCFLAGS_BASE) -DUSE_CUDA "-I$(CUDA_HOME)/include" "--compiler-bindir=$(NVCC_HOSTCXX)" "-I$(EINSTEIN_RADIO_SRC)" $(GENCODES) $(NVCC_EXTRA) $< -o $@
+
+dbhs_dev.o: dbhs.fat
+	aarch64-linux-gnu-ld -r -b binary dbhs.fat -o $@
+
+$(TARGET): $(DEPS) $(EINSTEIN_RADIO_SRC)/erp_git_version.h $(EINSTEIN_RADIO_SRC)/svn_version.h $(EINSTEIN_RADIO_SRC)/erp_boinc_wrapper.cpp $(OBJS)
+	$(CXX) $(CXXFLAGS_CPP) $(LDFLAGS) $(EINSTEIN_RADIO_SRC)/erp_boinc_wrapper.cpp -o $(TARGET) $(OBJS) $(LIBS)
+
+clean:
+	rm -f $(OBJS) $(TARGET) db.fat dbhs.fat
+
+.PHONY: default debug release clean

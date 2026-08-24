@@ -1,0 +1,31 @@
+# Build artifacts
+*.o
+*.lo
+*.la
+*.a
+*.cubin
+*.dev
+*.fat
+*.exe
+*.so*
+*.tar.gz
+*.zip
+
+# Vendored / downloadable trees (see scripts/wsl_setup.sh)
+3rdparty/
+boinc.tar.gz
+
+# Legacy NVIDIA/OpenCL binary redistributables (not needed to build; they are
+# part of the upstream brp-src-release.zip tree, not of this port)
+src/cuda/redist/
+src/opencl/redist/
+
+# Test scratch
+test/out/
+*.results.dat
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

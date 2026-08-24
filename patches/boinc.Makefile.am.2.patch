@@ -1,0 +1,11 @@
+--- Makefile.am
++++ Makefile.am.new	2009-03-27 18:50:55.000000000 +0100
+@@ -13,7 +13,7 @@
+ endif
+ 
+ if ENABLE_SERVER
+-   SERVER_SUBDIRS = db test py sched apps tools samples/example_app
++   SERVER_SUBDIRS = db test py sched apps tools
+ endif
+ 
+ if ENABLE_CLIENT

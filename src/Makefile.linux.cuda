@@ -1,0 +1,190 @@
+###########################################################################
+#   BRP4 (Binary Radio Pulsar Search) - CUDA variant, Linux x86_64
+#   Native Linux build using system g++ + NVIDIA nvcc
+#
+#   Mirrors Makefile.win64.cuda (same modernized source tree):
+#     * host code compiled by g++ (.cu files are plain driver-API C++ on
+#       the host side; device sections are guarded by __CUDACC__)
+#     * device modules -> nvcc -fatbin with multi-arch gencode (native
+#       SASS per generation + lowest-arch PTX for future GPUs)
+#     * fatbins embedded into the executable via "ld -r -b binary" and
+#       loaded through loadPtxModule() / cuModuleLoadData
+#
+#   Distribution: a SINGLE executable. On Linux NVIDIA ships static cuFFT
+#   (libcufft_static.a + libculibos.a), so - unlike Windows - no extra
+#   .so is needed. libcuda.so.1 comes with the GPU driver itself; gsl,
+#   fftw3f, xml2 and zlib are linked statically so the binary runs on
+#   any x86_64 glibc distribution.
+#
+#   One-time setup (Ubuntu/Debian):
+#     apt-get install build-essential libgsl-dev libfftw3-dev \
+#                     libxml2-dev zlib1g-dev libssl-dev
+#     # CUDA components from developer.download.nvidia.com redist archives:
+#     #   cuda_nvcc, cuda_cudart, libcufft  ->  /opt/cuda129
+#     # BOINC libraries:
+#     cd <boinc checkout> && ./_autosetup && ./configure --disable-server \
+#         --disable-client --disable-manager --disable-apps && cd lib
+#     make -f Makefile.linux && install to EINSTEIN_RADIO_INSTALL
+#       {lib/libboinc_api.a lib/libboinc.a include/boinc/*.h}
+#
+#   Build:
+#     make -f Makefile.linux.cuda \
+#          EINSTEIN_RADIO_SRC=<src dir> EINSTEIN_RADIO_INSTALL=<install dir>
+###########################################################################
+
+# path settings
+EINSTEIN_RADIO_SRC?=$(PWD)
+EINSTEIN_RADIO_INSTALL?=/root/build/brp4-install
+CUDA_HOME?=/opt/cuda129
+# boinc checkout root (provides the configure-generated config.h wanted by
+# erp_execinfo_plus.c and friends)
+BOINC_SRC?=/root/build/3rdparty/boinc-current_brp_apps
+
+NVCC_BIN?=$(CUDA_HOME)/bin/nvcc
+# nvcc's EDG frontend cannot parse the newest libstdc++ headers (gcc 15 on
+# current Ubuntu); point it at a supported host g++ for header parsing.
+# Device-only -fatbin builds never actually invoke it for code generation.
+NVCC_HOSTCXX?=/usr/bin/x86_64-linux-gnu-g++-14
+
+# GPU architecture coverage (identical policy to the Windows build):
+#   SASS_ARCHES -> native code sections embedded in the fatbin
+#   PTX_ARCH    -> lowest virtual arch; its PTX is embedded too so any
+#                  newer GPU JIT-compiles it
+SASS_ARCHES?=50 61 75 86 89 90 120
+PTX_ARCH?=50
+
+GENCODES = $(foreach a,$(SASS_ARCHES),-gencode arch=compute_$(a),code=sm_$(a))
+GENCODES += -gencode arch=compute_$(PTX_ARCH),code=compute_$(PTX_ARCH)
+
+# device-only (-fatbin) builds never invoke the host compiler.
+# -U_GNU_SOURCE stops glibc from declaring the GNU math extensions
+# (cospi/sinpi/rsqrt) with __THROW, which clashes with CUDA's own
+# declarations in crt/math_functions.h
+NVCC_EXTRA?=-U_GNU_SOURCE --allow-unsupported-compiler
+
+# config values
+CXX?=g++
+
+# variables
+CPPFLAGS += -DHAVE_INLINE -DBOINCIFIED -DUSE_CUDA $(CPPFLAGS_EXTRA)
+CPPFLAGS += -I$(EINSTEIN_RADIO_INSTALL)/include
+CPPFLAGS += -I$(EINSTEIN_RADIO_INSTALL)/include/boinc
+CPPFLAGS += -I$(CUDA_HOME)/include
+CPPFLAGS += -I/usr/include/libxml2
+CPPFLAGS += -I$(BOINC_SRC)
+# compat shims (e.g. a minimal sysdep.h for erp_execinfo_plus.c)
+CPPFLAGS += -I$(EINSTEIN_RADIO_SRC)/compat
+
+CXXFLAGS_COMMON = $(CPPFLAGS)
+CXXFLAGS_CPP = $(CXXFLAGS_BASE) $(CXXFLAGS_COMMON) -std=gnu++14
+
+# single-file distribution: boinc + gsl/fftw/xml2/zlib statically,
+# cuFFT statically from CUDA, driver API resolved at runtime by ldconfig
+LIBS  = -L$(EINSTEIN_RADIO_INSTALL)/lib
+LIBS += -Wl,-Bstatic -lboinc_api -lboinc -Wl,-Bdynamic
+# libbfd (used by the crash handler) drags in sframe/zstd/zlib, so it and
+# its dependencies sit at the tail of the static group
+LIBS += -Wl,-Bstatic -lgsl -lgslcblas -lfftw3f -lxml2 -llzma -lbfd -liberty -lsframe -lzstd -lz -Wl,-Bdynamic
+# static cuFFT: use the nocallback variant - our app never registers FFT
+# callbacks, and the callback variant drags in CUDA-runtime kernel-launch
+# machinery that a pure driver-API application does not link.
+#
+# CUFFT_SHARED=1 switches to NVIDIA's shared libcufft plus an $ORIGIN
+# rpath instead (exe + libcufft.so.N side by side, like the Windows
+# packages). Needed for the CUDA 11.8 legacy build whose static archives
+# contain separately-compiled (rdc) device code that cannot be linked
+# without a full nvcc device-link pass.
+CUFFT_STATIC?=lib/libcufft_static_nocallback.a
+ifeq ($(CUFFT_SHARED),1)
+LIBS += -L$(CUDA_HOME)/lib -lcufft
+LDFLAGS += -Wl,-rpath,'$$ORIGIN'
+else
+LIBS += $(CUDA_HOME)/$(CUFFT_STATIC) $(CUDA_HOME)/lib/libculibos.a
+endif
+LIBS += $(LIBS_EXTRA)
+LIBS += -L$(CUDA_HOME)/lib/stubs -lcuda
+LIBS += -lpthread -ldl -lrt -lm
+
+LDFLAGS += -static-libgcc -static-libstdc++
+
+# absolute so the same makefile also works out-of-tree (legacy variant builds)
+DEPS := $(firstword $(MAKEFILE_LIST))
+OBJS  = demod_binary.o hs_common.o rngmed.o erp_getopt.o erp_getopt1.o
+OBJS += erp_utilities.o erp_boinc_ipc.o cuda_utilities.o erp_execinfo_plus.o
+OBJS += demod_binary_cuda.cuda.o demod_binary_hs_cuda.cuda.o
+# fatbin modules embedded into the executable (see loadPtxModule)
+OBJS += db_dev.o dbhs_dev.o
+
+TARGET ?= einsteinbinary_linux_x86_64_cuda_custom
+
+# primary role based targets
+default: release
+debug: CXXFLAGS_BASE=-DLOGLEVEL=debug -O3 -Wall
+debug: NVCCFLAGS_BASE=-DLOGLEVEL=debug -O3
+debug: $(TARGET)
+release: CXXFLAGS_BASE=-DNDEBUG -DLOGLEVEL=info -O3 -Wall
+release: NVCCFLAGS_BASE=-DNDEBUG -O3
+release: $(TARGET)
+
+# generated version headers (created once, kept if present)
+$(EINSTEIN_RADIO_SRC)/erp_git_version.h:
+	@echo "#ifndef ERP_GIT_VERSION_H" > $@
+	@echo "#define ERP_GIT_VERSION_H" >> $@
+	@echo "#define ERP_GIT_VERSION \"v1.0 | BRP4 CUDA port by Alperen Yavuz\"" >> $@
+	@echo "" >> $@
+	@echo "#endif" >> $@
+
+$(EINSTEIN_RADIO_SRC)/svn_version.h:
+	@echo "#ifndef SVN_VERSION_H" > $@
+	@echo "#define SVN_VERSION_H" >> $@
+	@echo "#define SVN_VERSION \"BRP4 CUDA port by Alperen Yavuz\"" >> $@
+	@echo "#endif" >> $@
+
+# plain C/C++ objects
+%.o: $(EINSTEIN_RADIO_SRC)/%.c $(DEPS)
+	$(CXX) $(CXXFLAGS_BASE) $(CXXFLAGS_COMMON) -c $< -o $@
+
+%.o: $(EINSTEIN_RADIO_SRC)/%.cpp $(DEPS)
+	$(CXX) $(CXXFLAGS_CPP) -c $< -o $@
+
+cuda_utilities.o: $(EINSTEIN_RADIO_SRC)/cuda/app/cuda_utilities.c $(EINSTEIN_RADIO_SRC)/cuda/app/cuda_utilities.h $(DEPS)
+	$(CXX) $(CXXFLAGS_BASE) $(CXXFLAGS_COMMON) -c $< -o $@
+
+# linux crash-handler support (the Windows build swaps this for exchndl)
+erp_execinfo_plus.o: $(EINSTEIN_RADIO_SRC)/erp_execinfo_plus.c $(EINSTEIN_RADIO_SRC)/erp_execinfo_plus.h $(DEPS)
+	$(CXX) $(CXXFLAGS_BASE) $(CXXFLAGS_COMMON) -c $< -o $@
+
+# CUDA host objects: .cu files are plain driver-API C++ for the host side;
+# all device-only content is guarded by __CUDACC__ and skipped by g++
+demod_binary_cuda.cuda.o: $(EINSTEIN_RADIO_SRC)/cuda/app/demod_binary_cuda.cu $(EINSTEIN_RADIO_SRC)/cuda/app/demod_binary_cuda.cuh $(DEPS)
+	$(CXX) $(CXXFLAGS_CPP) -x c++ -c $< -o $@
+
+demod_binary_hs_cuda.cuda.o: $(EINSTEIN_RADIO_SRC)/cuda/app/demod_binary_hs_cuda.cu $(DEPS)
+	$(CXX) $(CXXFLAGS_CPP) -x c++ -c $< -o $@
+
+# device modules: one multi-arch fatbin per module (SASS for all supported
+# generations + lowest-arch PTX for forward compatibility), embedded into
+# the executable; cuModuleLoadData lets the driver pick the native section
+db.fat: $(EINSTEIN_RADIO_SRC)/cuda/app/demod_binary_cuda.cu $(EINSTEIN_RADIO_SRC)/cuda/app/demod_binary_cuda.cuh $(DEPS)
+	$(NVCC_BIN) -fatbin $(NVCCFLAGS_BASE) -DUSE_CUDA "-I$(CUDA_HOME)/include" "--compiler-bindir=$(NVCC_HOSTCXX)" "-I$(EINSTEIN_RADIO_SRC)" $(GENCODES) $(NVCC_EXTRA) $< -o $@
+
+db_dev.o: db.fat
+	ld -r -b binary db.fat -o $@
+
+dbhs.fat: $(EINSTEIN_RADIO_SRC)/cuda/app/demod_binary_hs_cuda.cu $(EINSTEIN_RADIO_SRC)/cuda/app/harmonic_summing_kernel.cuh $(DEPS)
+	$(NVCC_BIN) -fatbin $(NVCCFLAGS_BASE) -DUSE_CUDA "-I$(CUDA_HOME)/include" "--compiler-bindir=$(NVCC_HOSTCXX)" "-I$(EINSTEIN_RADIO_SRC)" $(GENCODES) $(NVCC_EXTRA) $< -o $@
+
+dbhs_dev.o: dbhs.fat
+	ld -r -b binary dbhs.fat -o $@
+
+$(TARGET): $(DEPS) $(EINSTEIN_RADIO_SRC)/erp_git_version.h $(EINSTEIN_RADIO_SRC)/svn_version.h $(EINSTEIN_RADIO_SRC)/erp_boinc_wrapper.cpp $(OBJS)
+	$(CXX) $(CXXFLAGS_CPP) $(LDFLAGS) $(EINSTEIN_RADIO_SRC)/erp_boinc_wrapper.cpp -o $(TARGET) $(OBJS) $(LIBS)
+
+install: $(TARGET)
+	mkdir -p $(EINSTEIN_RADIO_INSTALL)/../dist
+	cp $(TARGET) $(EINSTEIN_RADIO_INSTALL)/../dist
+
+clean:
+	rm -f $(OBJS) $(TARGET) db.fat dbhs.fat
+
+.PHONY: default debug release install clean

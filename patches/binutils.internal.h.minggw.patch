@@ -1,0 +1,40 @@
+--- internal.h	2021-01-21 13:51:15.287158426 +0000
++++ internal.h	2021-01-21 13:53:04.099158649 +0000
+@@ -98,11 +98,11 @@
+ #define F_DLL           (0x2000)
+ 
+ /* Extra structure which is used in the optional header.  */
+-typedef struct _IMAGE_DATA_DIRECTORY
+-{
+-  bfd_vma VirtualAddress;
+-  long    Size;
+-}  IMAGE_DATA_DIRECTORY;
++//typedef struct _IMAGE_DATA_DIRECTORY
++//{
++//  bfd_vma VirtualAddress;
++//  long    Size;
++//}  IMAGE_DATA_DIRECTORY;
+ #define PE_EXPORT_TABLE			0
+ #define PE_IMPORT_TABLE			1
+ #define PE_RESOURCE_TABLE		2
+@@ -516,9 +516,9 @@
+ #define DT_FCN		(2)	/* function */
+ #define DT_ARY		(3)	/* array */
+ 
+-#define BTYPE(x)	((x) & N_BTMASK)
++//#define BTYPE(x)	((x) & N_BTMASK)
+ #define DTYPE(x)	(((x) & N_TMASK) >> N_BTSHFT)
+-
++/*
+ #define ISPTR(x) \
+   (((unsigned long) (x) & N_TMASK) == ((unsigned long) DT_PTR << N_BTSHFT))
+ #define ISFCN(x) \
+@@ -529,7 +529,7 @@
+   ((x) == C_STRTAG || (x) == C_UNTAG || (x) == C_ENTAG)
+ #define DECREF(x) \
+   ((((x) >> N_TSHIFT) & ~ N_BTMASK) | ((x) & N_BTMASK))
+-
++*/
+ union internal_auxent
+ {
+   struct
