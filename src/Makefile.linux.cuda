@@ -121,7 +121,7 @@ OBJS += demod_binary_cuda.cuda.o demod_binary_hs_cuda.cuda.o
 # fatbin modules embedded into the executable (see loadPtxModule)
 OBJS += db_dev.o dbhs_dev.o
 
-TARGET ?= einsteinbinary_linux_x86_64_cuda_custom
+TARGET ?= einsteinbinary_BRP4_linux_x86_64_modern
 
 # release banner (build scripts delete erp_git_version.h to force regeneration);
 # BUILD_FLAVOR is e.g. "-kepler" / "-fermi" for the legacy era builds
@@ -141,7 +141,7 @@ release: $(TARGET)
 $(EINSTEIN_RADIO_SRC)/erp_git_version.h:
 	@echo "#ifndef ERP_GIT_VERSION_H" > $@
 	@echo "#define ERP_GIT_VERSION_H" >> $@
-	@echo "#define ERP_GIT_VERSION \"$(ERP_VERSION)$(BUILD_FLAVOR) | BRP4 CUDA port by Alperen Yavuz\"" >> $@
+	@echo "#define ERP_GIT_VERSION \"$(ERP_VERSION)$(BUILD_FLAVOR) | Coded by Alperen Yavuz (github.com/alplix)\"" >> $@
 	@echo "" >> $@
 	@echo "#endif" >> $@
 

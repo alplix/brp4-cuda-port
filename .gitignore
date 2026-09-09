@@ -29,3 +29,4 @@ test/out/
 .idea/
 .DS_Store
 Thumbs.db
+forum-post*.md

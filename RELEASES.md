@@ -33,14 +33,14 @@ no router), or the router package that auto-picks. Install only ONE of them
 
 | Asset | Cards |
 |---|---|
-| `einsteinbinary_BRP4_windows_x86_64_cuda_custom_v1.2.zip` | GTX 900 → RTX 50 (modern exe + `cufft64_11.dll`) |
-| `einsteinbinary_BRP4_windows_x86_64_cuda102_kepler_v1.2.zip` | GTX 600/700, GT 710–740, Titan (kepler exe + `cufft64_10.dll`) |
-| `einsteinbinary_BRP4_windows_x86_64_cuda80_fermi_v1.2.zip` | GTX 400/500, GT 610/620/630 (fermi exe + `cufft64_80.dll`) |
-| `einsteinbinary_BRP4_windows_x86_64_cuda_custom_router_v1.2.zip` | any NVIDIA GPU (router + all three builds + all DLLs) |
-| `einsteinbinary_BRP4_linux_x86_64_cuda_custom_v1.2.tar.gz` | GTX 900 → RTX 50 (modern exe, static cuFFT) |
-| `einsteinbinary_BRP4_linux_x86_64_cuda102_kepler_v1.2.tar.gz` | GTX 600/700, GT 710–740, Titan (kepler exe + `libcufft.so.10`) |
-| `einsteinbinary_BRP4_linux_x86_64_cuda80_fermi_v1.2.tar.gz` | GTX 400/500, GT 610/620/630 (fermi exe + `libcufft.so.8.0`) |
-| `einsteinbinary_BRP4_linux_x86_64_cuda_custom_router_v1.2.tar.gz` | any NVIDIA GPU (router + all three builds + both era cuFFT libs) |
+| `einsteinbinary_BRP4_windows_x86_64_modern_v1.2.zip` | GTX 900 → RTX 50 (modern exe + `cufft64_11.dll`) |
+| `einsteinbinary_BRP4_windows_x86_64_kepler_v1.2.zip` | GTX 600/700, GT 710–740, Titan (kepler exe + `cufft64_10.dll`) |
+| `einsteinbinary_BRP4_windows_x86_64_fermi_v1.2.zip` | GTX 400/500, GT 610/620/630 (fermi exe + `cufft64_80.dll`) |
+| `einsteinbinary_BRP4_windows_x86_64_router_v1.2.zip` | any NVIDIA GPU (router + all three builds + all DLLs) |
+| `einsteinbinary_BRP4_linux_x86_64_modern_v1.2.tar.gz` | GTX 900 → RTX 50 (modern exe, static cuFFT) |
+| `einsteinbinary_BRP4_linux_x86_64_kepler_v1.2.tar.gz` | GTX 600/700, GT 710–740, Titan (kepler exe + `libcufft.so.10`) |
+| `einsteinbinary_BRP4_linux_x86_64_fermi_v1.2.tar.gz` | GTX 400/500, GT 610/620/630 (fermi exe + `libcufft.so.8.0`) |
+| `einsteinbinary_BRP4_linux_x86_64_router_v1.2.tar.gz` | any NVIDIA GPU (router + all three builds + both era cuFFT libs) |
 | `einsteinbinary_BRP4_linux_aarch64_cuda_custom_v1.1.tar.gz` | ARM64 — unchanged from v1.1 (Jetson TX1→Orin, ARM servers, DGX Spark) |
 
 **Known limitation:** current Ter5 `sband_dns` tasks require unpublished

@@ -17,7 +17,7 @@ compute_35 PTX.
 
 Contents of this package
 ------------------------
-  einsteinbinary_BRP4_linux_x86_64_cuda102_kepler   the application
+  einsteinbinary_BRP4_linux_x86_64_kepler   the application
   libcufft.so.10                                    NVIDIA cuFFT (CUDA 10.2)
   app_info.xml / app_config.xml                     BOINC anonymous platform
 
@@ -30,13 +30,13 @@ Installation (BOINC anonymous platform)
 2) Back up and DELETE any existing app_info.xml there.
 3) Copy ALL files from this package into that folder and make sure the
    program is executable:
-      chmod +x einsteinbinary_BRP4_linux_x86_64_cuda102_kepler
+      chmod +x einsteinbinary_BRP4_linux_x86_64_kepler
 4) Restart BOINC, "Use GPU" enabled.
 Version number 99 by design: custom builds stay below the official 100.
 
 Standalone usage
 ----------------
-  ./einsteinbinary_BRP4_linux_x86_64_cuda102_kepler \
+  ./einsteinbinary_BRP4_linux_x86_64_kepler \
       -i input.binary -t bank.txt -l zaplist.txt \
       -o results.dat -c checkpoint.dat -W -D 0 -z
 

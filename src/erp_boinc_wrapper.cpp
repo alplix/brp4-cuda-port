@@ -502,6 +502,9 @@ int main(int argc, char** argv) {
   int result = 0;
 
   logMessage(info, true, "Application startup - thank you for supporting Einstein@Home!\n");
+  logMessage(info, true, "This is the BRP4 CUDA port %s\n", ERP_GIT_VERSION);
+  logMessage(info, true, "Built at %s %s. Thank you for crunching with it :)\n",
+             __DATE__, __TIME__);
 
 #ifdef ANDROID
   android_fdsan_set_error_level(ANDROID_FDSAN_ERROR_LEVEL_WARN_ALWAYS);

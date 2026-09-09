@@ -4,7 +4,7 @@
         <user_friendly_name>Einstein Binary Radio Pulsar Search (BRP4)</user_friendly_name>
     </app>
     <file_info>
-        <name>einsteinbinary_BRP4_linux_x86_64_cuda_custom</name>
+        <name>einsteinbinary_BRP4_linux_x86_64_modern</name>
         <executable/>
     </file_info>
     <app_version>
@@ -20,7 +20,7 @@
             <count>1</count>
         </coproc>
         <file_ref>
-            <file_name>einsteinbinary_BRP4_linux_x86_64_cuda_custom</file_name>
+            <file_name>einsteinbinary_BRP4_linux_x86_64_modern</file_name>
             <main_program/>
         </file_ref>
     </app_version>

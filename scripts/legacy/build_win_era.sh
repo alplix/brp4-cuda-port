@@ -62,31 +62,35 @@ T=x86_64-w64-mingw32
 case "${1:-all}" in
   modern)
     build_era_win modern /opt/cuda129 "50 61 75 86 89 90 100f 120f" 50 \
-      einsteinbinary_BRP4_windows_x86_64_cuda_custom.exe \
+      einsteinbinary_BRP4_windows_x86_64_modern.exe \
       "-U_GNU_SOURCE -U_FORTIFY_SOURCE --allow-unsupported-compiler" \
       "$IMPORTS/libcufft64_11.a" cufft64_11.dll
     ;;
   kepler)
     build_era_win kepler /opt/cuda102 "30 35 37" 35 \
-      einsteinbinary_BRP4_windows_x86_64_cuda102_kepler.exe \
+      einsteinbinary_BRP4_windows_x86_64_kepler.exe \
       "-U_GNU_SOURCE -U_FORTIFY_SOURCE -D__HAVE_FLOAT128=0" \
       "$IMPORTS/libcufft64_10.a" cufft64_10.dll
     ;;
   fermi)
     build_era_win fermi /opt/cuda80 "20" 20 \
-      einsteinbinary_BRP4_windows_x86_64_cuda80_fermi.exe \
+      einsteinbinary_BRP4_windows_x86_64_fermi.exe \
       "-U_GNU_SOURCE -U_FORTIFY_SOURCE -D__HAVE_FLOAT128=0" \
       "$IMPORTS/libcufft64_80.a" cufft64_80.dll
     ;;
   all)
     build_era_win kepler /opt/cuda102 "30 35 37" 35 \
-      einsteinbinary_BRP4_windows_x86_64_cuda102_kepler.exe \
+      einsteinbinary_BRP4_windows_x86_64_kepler.exe \
       "-U_GNU_SOURCE -U_FORTIFY_SOURCE -D__HAVE_FLOAT128=0" \
       "$IMPORTS/libcufft64_10.a" cufft64_10.dll
     build_era_win fermi /opt/cuda80 "20" 20 \
-      einsteinbinary_BRP4_windows_x86_64_cuda80_fermi.exe \
+      einsteinbinary_BRP4_windows_x86_64_fermi.exe \
       "-U_GNU_SOURCE -U_FORTIFY_SOURCE -D__HAVE_FLOAT128=0" \
       "$IMPORTS/libcufft64_80.a" cufft64_80.dll
+    build_era_win modern /opt/cuda129 "50 61 75 86 89 90 100f 120f" 50 \
+      einsteinbinary_BRP4_windows_x86_64_modern.exe \
+      "-U_GNU_SOURCE -U_FORTIFY_SOURCE --allow-unsupported-compiler" \
+      "$IMPORTS/libcufft64_11.a" cufft64_11.dll
     ;;
   *) echo "usage: $0 [kepler|fermi|all]"; exit 2;;
 esac

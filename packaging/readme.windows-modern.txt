@@ -19,7 +19,7 @@ compute_50 PTX (future GPUs keep working through driver JIT).
 
 Contents of this package
 ------------------------
-  einsteinbinary_BRP4_windows_x86_64_cuda_custom.exe   the application
+  einsteinbinary_BRP4_windows_x86_64_modern.exe   the application
   cufft64_11.dll                                       NVIDIA cuFFT (CUDA 12)
   app_info.xml                                         BOINC anonymous platform
   app_config.xml                                       BOINC project-folder settings
@@ -42,7 +42,7 @@ builds to stay below 100 so they never collide with official versions.
 
 Standalone usage (no BOINC needed for testing)
 ----------------------------------------------
-  einsteinbinary_BRP4_windows_x86_64_cuda_custom.exe ^
+  einsteinbinary_BRP4_windows_x86_64_modern.exe ^
       -i input.binary -t bank.txt -l zaplist.txt ^
       -o results.dat -c checkpoint.dat -W -D 0 -z
 

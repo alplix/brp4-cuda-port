@@ -52,20 +52,20 @@ build_era() { # $1=flavor $2=cuda_home $3=sass $4=ptx $5=target $6=nvcc_extra [$
 case "${1:-all}" in
   kepler)
     build_era kepler /opt/cuda102 "30 35 37" 35 \
-      einsteinbinary_BRP4_linux_x86_64_cuda102_kepler \
+      einsteinbinary_BRP4_linux_x86_64_kepler \
       "-U_GNU_SOURCE -U_FORTIFY_SOURCE -D__HAVE_FLOAT128=0"
     ;;
   fermi)
     build_era fermi /opt/cuda80 "20" 20 \
-      einsteinbinary_BRP4_linux_x86_64_cuda80_fermi \
+      einsteinbinary_BRP4_linux_x86_64_fermi \
       "-U_GNU_SOURCE -U_FORTIFY_SOURCE -D__HAVE_FLOAT128=0 -I/opt/gcc5-root/usr/include -I/opt/gcc5-root/usr/include/x86_64-linux-gnu"
     ;;
   all)
     build_era kepler /opt/cuda102 "30 35 37" 35 \
-      einsteinbinary_BRP4_linux_x86_64_cuda102_kepler \
+      einsteinbinary_BRP4_linux_x86_64_kepler \
       "-U_GNU_SOURCE -U_FORTIFY_SOURCE -D__HAVE_FLOAT128=0"
     build_era fermi /opt/cuda80 "20" 20 \
-      einsteinbinary_BRP4_linux_x86_64_cuda80_fermi \
+      einsteinbinary_BRP4_linux_x86_64_fermi \
       "-U_GNU_SOURCE -U_FORTIFY_SOURCE -D__HAVE_FLOAT128=0 -I/opt/gcc5-root/usr/include -I/opt/gcc5-root/usr/include/x86_64-linux-gnu"
     ;;
   *) echo "usage: $0 [kepler|fermi|all]"; exit 2;;

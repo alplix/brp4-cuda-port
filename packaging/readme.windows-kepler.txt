@@ -17,7 +17,7 @@ compute_35 PTX.
 
 Contents of this package
 ------------------------
-  einsteinbinary_BRP4_windows_x86_64_cuda102_kepler.exe   the application
+  einsteinbinary_BRP4_windows_x86_64_kepler.exe   the application
   cufft64_10.dll                                          NVIDIA cuFFT (CUDA 10.2)
   app_info.xml / app_config.xml                           BOINC anonymous platform
 
@@ -33,7 +33,7 @@ Version number 99 by design: custom builds stay below the official 100.
 
 Standalone usage
 ----------------
-  einsteinbinary_BRP4_windows_x86_64_cuda102_kepler.exe ^
+  einsteinbinary_BRP4_windows_x86_64_kepler.exe ^
       -i input.binary -t bank.txt -l zaplist.txt ^
       -o results.dat -c checkpoint.dat -W -D 0 -z
 

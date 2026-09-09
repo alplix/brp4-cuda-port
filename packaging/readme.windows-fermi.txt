@@ -16,7 +16,7 @@ plus compute_20 PTX.
 
 Contents of this package
 ------------------------
-  einsteinbinary_BRP4_windows_x86_64_cuda80_fermi.exe   the application
+  einsteinbinary_BRP4_windows_x86_64_fermi.exe   the application
   cufft64_80.dll                                        NVIDIA cuFFT (CUDA 8.0)
   app_info.xml / app_config.xml                         BOINC anonymous platform
 
@@ -32,7 +32,7 @@ Version number 99 by design: custom builds stay below the official 100.
 
 Standalone usage
 ----------------
-  einsteinbinary_BRP4_windows_x86_64_cuda80_fermi.exe ^
+  einsteinbinary_BRP4_windows_x86_64_fermi.exe ^
       -i input.binary -t bank.txt -l zaplist.txt ^
       -o results.dat -c checkpoint.dat -W -D 0 -z
 

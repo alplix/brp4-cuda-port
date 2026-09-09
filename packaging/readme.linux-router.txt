@@ -1,4 +1,4 @@
-BRP4 Binary Radio Pulsar Search - Custom CUDA Build for LINUX x86_64
+BRP4 Binary Radio Pulsar Search - CUDA Build for LINUX x86_64
 ====================================================================
 Port: "BRP4 CUDA port by Alperen Yavuz" (the signature is embedded in every
 binary; visible on stderr / results header)
@@ -16,9 +16,9 @@ This package contains THREE era builds plus a router:
 
   einsteinbinary_BRP4_linux_x86_64_router        start-me program - picks the
                                                  right build for your GPU
-  einsteinbinary_BRP4_linux_x86_64_cuda_custom   modern build (CUDA 12.9)
-  einsteinbinary_BRP4_linux_x86_64_cuda102_kepler kepler build (CUDA 10.2)
-  einsteinbinary_BRP4_linux_x86_64_cuda80_fermi  fermi build  (CUDA 8.0)
+  einsteinbinary_BRP4_linux_x86_64_modern   modern build (CUDA 12.9)
+  einsteinbinary_BRP4_linux_x86_64_kepler kepler build (CUDA 10.2)
+  einsteinbinary_BRP4_linux_x86_64_fermi  fermi build  (CUDA 8.0)
   libcufft.so.10 / libcufft.so.8.0               era cuFFT libraries
   app_info.xml / app_config.xml                  BOINC anonymous platform
 

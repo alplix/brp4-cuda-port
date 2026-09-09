@@ -76,14 +76,14 @@ Install only ONE package (all declare the same app).
 
 | Package | Cards | Notes |
 |---|---|---|
-| **Windows x64** `..._cuda_custom_v1.2.zip` | GTX 900 → RTX 50 | single modern exe (CUDA 12.9), `cufft64_11.dll` included |
-| **Windows x64** `..._cuda102_kepler_v1.2.zip` | GTX 600/700, GT 710–740, Titan | single kepler exe (CUDA 10.2), `cufft64_10.dll` included |
-| **Windows x64** `..._cuda80_fermi_v1.2.zip` | GTX 400/500, GT 610/620/630 | single fermi exe (CUDA 8.0), `cufft64_80.dll` included |
-| **Windows x64** `..._cuda_custom_router_v1.2.zip` | every NVIDIA GPU | router auto-picks among all three builds |
-| **Linux x86_64** `..._cuda_custom_v1.2.tar.gz` | GTX 900 → RTX 50 | single modern exe, cuFFT static |
-| **Linux x86_64** `..._cuda102_kepler_v1.2.tar.gz` | GTX 600/700, GT 710–740, Titan | single kepler exe + `libcufft.so.10` |
-| **Linux x86_64** `..._cuda80_fermi_v1.2.tar.gz` | GTX 400/500, GT 610/620/630 | single fermi exe + `libcufft.so.8.0` |
-| **Linux x86_64** `..._cuda_custom_router_v1.2.tar.gz` | every NVIDIA GPU | router auto-picks among all three builds |
+| **Windows x64** `..._modern_v1.2.zip` | GTX 900 → RTX 50 | single modern exe (CUDA 12.9), `cufft64_11.dll` included |
+| **Windows x64** `..._kepler_v1.2.zip` | GTX 600/700, GT 710–740, Titan | single kepler exe (CUDA 10.2), `cufft64_10.dll` included |
+| **Windows x64** `..._fermi_v1.2.zip` | GTX 400/500, GT 610/620/630 | single fermi exe (CUDA 8.0), `cufft64_80.dll` included |
+| **Windows x64** `..._router_v1.2.zip` | every NVIDIA GPU | router auto-picks among all three builds |
+| **Linux x86_64** `..._modern_v1.2.tar.gz` | GTX 900 → RTX 50 | single modern exe, cuFFT static |
+| **Linux x86_64** `..._kepler_v1.2.tar.gz` | GTX 600/700, GT 710–740, Titan | single kepler exe + `libcufft.so.10` |
+| **Linux x86_64** `..._fermi_v1.2.tar.gz` | GTX 400/500, GT 610/620/630 | single fermi exe + `libcufft.so.8.0` |
+| **Linux x86_64** `..._router_v1.2.tar.gz` | every NVIDIA GPU | router auto-picks among all three builds |
 | **Linux ARM64** `_v1.1.tar.gz` | single aarch64 exe | Jetson TX1→Orin, ARM servers, DGX Spark |
 
 Driver floors (set by NVIDIA's support lifecycle): modern build r575+,
@@ -110,7 +110,7 @@ custom builds to stay below 100 so they never collide with official versions.
 No BOINC needed for testing:
 
 ```sh
-./einsteinbinary_BRP4_linux_x86_64_cuda_custom \
+./einsteinbinary_BRP4_linux_x86_64_modern \
     -i input.binary -t bank.txt -l zaplist.txt \
     -o results.dat -c checkpoint.dat -W -D 0 -z
 ```

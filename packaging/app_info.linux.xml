@@ -8,15 +8,15 @@
         <executable/>
     </file_info>
     <file_info>
-        <name>einsteinbinary_BRP4_linux_x86_64_cuda_custom</name>
+        <name>einsteinbinary_BRP4_linux_x86_64_modern</name>
         <executable/>
     </file_info>
     <file_info>
-        <name>einsteinbinary_BRP4_linux_x86_64_cuda102_kepler</name>
+        <name>einsteinbinary_BRP4_linux_x86_64_kepler</name>
         <executable/>
     </file_info>
     <file_info>
-        <name>einsteinbinary_BRP4_linux_x86_64_cuda80_fermi</name>
+        <name>einsteinbinary_BRP4_linux_x86_64_fermi</name>
         <executable/>
     </file_info>
     <file_info>

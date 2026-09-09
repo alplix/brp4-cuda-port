@@ -8,15 +8,15 @@
         <executable/>
     </file_info>
     <file_info>
-        <name>einsteinbinary_BRP4_windows_x86_64_cuda_custom.exe</name>
+        <name>einsteinbinary_BRP4_windows_x86_64_modern.exe</name>
         <executable/>
     </file_info>
     <file_info>
-        <name>einsteinbinary_BRP4_windows_x86_64_cuda102_kepler.exe</name>
+        <name>einsteinbinary_BRP4_windows_x86_64_kepler.exe</name>
         <executable/>
     </file_info>
     <file_info>
-        <name>einsteinbinary_BRP4_windows_x86_64_cuda80_fermi.exe</name>
+        <name>einsteinbinary_BRP4_windows_x86_64_fermi.exe</name>
         <executable/>
     </file_info>
     <file_info>

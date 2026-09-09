@@ -16,7 +16,7 @@ plus compute_20 PTX.
 
 Contents of this package
 ------------------------
-  einsteinbinary_BRP4_linux_x86_64_cuda80_fermi   the application
+  einsteinbinary_BRP4_linux_x86_64_fermi   the application
   libcufft.so.8.0                                 NVIDIA cuFFT (CUDA 8.0)
   app_info.xml / app_config.xml                   BOINC anonymous platform
 
@@ -29,13 +29,13 @@ Installation (BOINC anonymous platform)
 2) Back up and DELETE any existing app_info.xml there.
 3) Copy ALL files from this package into that folder and make sure the
    program is executable:
-      chmod +x einsteinbinary_BRP4_linux_x86_64_cuda80_fermi
+      chmod +x einsteinbinary_BRP4_linux_x86_64_fermi
 4) Restart BOINC, "Use GPU" enabled.
 Version number 99 by design: custom builds stay below the official 100.
 
 Standalone usage
 ----------------
-  ./einsteinbinary_BRP4_linux_x86_64_cuda80_fermi \
+  ./einsteinbinary_BRP4_linux_x86_64_fermi \
       -i input.binary -t bank.txt -l zaplist.txt \
       -o results.dat -c checkpoint.dat -W -D 0 -z
 

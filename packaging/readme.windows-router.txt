@@ -1,4 +1,4 @@
-BRP4 Binary Radio Pulsar Search - Custom CUDA Build for WINDOWS x64
+BRP4 Binary Radio Pulsar Search - CUDA Build for WINDOWS x64
 ===================================================================
 Port: "BRP4 CUDA port by Alperen Yavuz" (the signature is embedded in every
 binary; visible on stderr / results header)
@@ -17,9 +17,9 @@ This package contains THREE era builds plus a router:
   einsteinbinary_BRP4_windows_x86_64_router.exe         start-me program -
                                                         picks the right build
                                                         for your GPU
-  einsteinbinary_BRP4_windows_x86_64_cuda_custom.exe    modern build (CUDA 12.9)
-  einsteinbinary_BRP4_windows_x86_64_cuda102_kepler.exe kepler build (CUDA 10.2)
-  einsteinbinary_BRP4_windows_x86_64_cuda80_fermi.exe   fermi build  (CUDA 8.0)
+  einsteinbinary_BRP4_windows_x86_64_modern.exe    modern build (CUDA 12.9)
+  einsteinbinary_BRP4_windows_x86_64_kepler.exe kepler build (CUDA 10.2)
+  einsteinbinary_BRP4_windows_x86_64_fermi.exe   fermi build  (CUDA 8.0)
   cufft64_11.dll / cufft64_10.dll / cufft64_80.dll      era cuFFT libraries
   app_info.xml / app_config.xml                         BOINC anonymous platform
 

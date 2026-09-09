@@ -1,4 +1,4 @@
-BRP4 Binary Radio Pulsar Search - Custom CUDA Build for LINUX ARM64 (Jetson)
+BRP4 Binary Radio Pulsar Search - CUDA Build for LINUX ARM64 (Jetson)
 ============================================================================
 Port: "BRP4 CUDA port by Alperen Yavuz" (the signature is embedded in the
 binary; visible on stderr / results header)

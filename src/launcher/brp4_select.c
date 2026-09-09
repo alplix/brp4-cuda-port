@@ -309,15 +309,15 @@ int main(int argc, char **argv) {
   /* binary names live next to the launcher */
 #ifdef _WIN32
   static const char *binaryNames[] = {
-      "modern", "einsteinbinary_BRP4_windows_x86_64_cuda_custom.exe",
-      "kepler", "einsteinbinary_BRP4_windows_x86_64_cuda102_kepler.exe",
-      "fermi",  "einsteinbinary_BRP4_windows_x86_64_cuda80_fermi.exe",
+      "modern", "einsteinbinary_BRP4_windows_x86_64_modern.exe",
+      "kepler", "einsteinbinary_BRP4_windows_x86_64_kepler.exe",
+      "fermi",  "einsteinbinary_BRP4_windows_x86_64_fermi.exe",
       NULL, NULL};
 #else
   static const char *binaryNames[] = {
-      "modern", "einsteinbinary_BRP4_linux_x86_64_cuda_custom",
-      "kepler", "einsteinbinary_BRP4_linux_x86_64_cuda102_kepler",
-      "fermi",  "einsteinbinary_BRP4_linux_x86_64_cuda80_fermi",
+      "modern", "einsteinbinary_BRP4_linux_x86_64_modern",
+      "kepler", "einsteinbinary_BRP4_linux_x86_64_kepler",
+      "fermi",  "einsteinbinary_BRP4_linux_x86_64_fermi",
       NULL, NULL};
 #endif
   const char *binary = NULL;
