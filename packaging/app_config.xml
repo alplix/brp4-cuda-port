@@ -1,0 +1,9 @@
+<app_config>
+    <app>
+        <name>einsteinbinary_BRP4</name>
+        <gpu_versions>
+            <gpu_usage>0.50</gpu_usage>
+            <cpu_usage>0.50</cpu_usage>
+        </gpu_versions>
+    </app>
+</app_config>

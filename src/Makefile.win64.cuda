@@ -48,6 +48,11 @@ EINSTEIN_RADIO_SRC?=$(PWD)
 EINSTEIN_RADIO_INSTALL?=$(PWD)/../install
 CUDA_HOME?=C:/Users/Alp/cuda-toolkit/tk
 CUFFT_HOME?=C:/Users/Alp/cuda-toolkit/libcufft-windows-x86_64-11.4.1.4-archive
+# cufft headers default to the toolkit tree; era builds (Linux-hosted nvcc
+# cross) and custom import libraries are selected via CUFFT_INC/CUFFT_LIB/NVCUDA_LIB
+CUFFT_INC?=$(CUDA_HOME)/include
+CUFFT_LIB?=$(CUFFT_HOME)/lib/x64/cufft.lib
+NVCUDA_LIB?=$(CUDA_HOME)/lib/libcuda.dll.a
 CUFFT_DLL?=cufft64_11.dll
 NVCC_BIN?=C:/Users/Alp/cuda-toolkit/cuda_nvcc-windows-x86_64-12.9.86-archive/bin/nvcc.exe
 FATBINARY_BIN?=C:/Users/Alp/cuda-toolkit/cuda_nvcc-windows-x86_64-12.9.86-archive/bin/fatbinary.exe
@@ -82,7 +87,7 @@ CPPFLAGS += -DHAVE_INLINE -DBOINCIFIED -DUSE_CUDA $(CPPFLAGS_EXTRA)
 CPPFLAGS += -I$(EINSTEIN_RADIO_INSTALL)/include
 CPPFLAGS += -I$(EINSTEIN_RADIO_INSTALL)/include/boinc
 CPPFLAGS += -I"$(CUDA_HOME)/include"
-CPPFLAGS += -I"C:/Users/Alp/cuda-toolkit/libcufft-windows-x86_64-11.4.1.4-archive/include"
+CPPFLAGS += -I"$(CUFFT_INC)"
 CPPFLAGS += -I/mingw64/include/libxml2
 # libxml2 is linked statically, so its headers must not dllimport
 CPPFLAGS += -DLIBXML_STATIC
@@ -95,20 +100,26 @@ CXXFLAGS_CPP = $(CXXFLAGS_BASE) $(CXXFLAGS_COMMON) -std=gnu++14
 # distribution layout: the executable plus NVIDIA's cufft64_11.dll
 # (no static cuFFT exists on Windows; same as official EAH CUDA apps).
 # Everything else is static; nvcuda.dll comes with the GPU driver.
+# WIN_DEPS_INC/WIN_DEPS_LIB: extra include/search paths for the static
+# gsl/fftw3f/xml2/zlib/iconv used by the WSL cross builds (empty on native MSYS2)
+WIN_DEPS_INC?=
+WIN_DEPS_LIB?=
+CPPFLAGS += $(foreach d,$(WIN_DEPS_INC),-I$(d))
+LDFLAGS += $(foreach d,$(WIN_DEPS_LIB),-L$(d))
 LIBS  = -L$(EINSTEIN_RADIO_INSTALL)/lib
 LIBS += -lboinc_api -lboinc
 LIBS += -Wl,-Bstatic
 LIBS += -lgsl -lgslcblas -lfftw3f -lxml2 -lz -liconv -lbcrypt
 LIBS += -Wl,-Bdynamic
-LIBS += "$(CUDA_HOME)/lib/libcuda.dll.a"
-LIBS += "$(CUFFT_HOME)/lib/x64/cufft.lib"
+LIBS += "$(NVCUDA_LIB)"
+LIBS += "$(CUFFT_LIB)"
 LIBS += -lws2_32 -lpsapi
 # gcc's mingw spec appends its own dynamic -lpthread after these, so force
 # every member of the static winpthread archive in; nothing left undefined
 # means the implicit import library is skipped entirely
 LIBS += -Wl,-Bstatic,--whole-archive -lwinpthread -Wl,--no-whole-archive,-Bdynamic
 
-LDFLAGS = -static-libgcc -static-libstdc++
+LDFLAGS += -static-libgcc -static-libstdc++
 
 # absolute so the same makefile also works out-of-tree (legacy variant builds)
 DEPS := $(firstword $(MAKEFILE_LIST))
@@ -119,6 +130,11 @@ OBJS += demod_binary_cuda.cuda.o demod_binary_hs_cuda.cuda.o
 OBJS += db_dev.o dbhs_dev.o
 
 TARGET ?= einsteinbinary_win_x86_64_cuda_custom.exe
+
+# release banner (build scripts delete erp_git_version.h to force regeneration);
+# BUILD_FLAVOR is e.g. "-kepler" / "-fermi" for the legacy era builds
+ERP_VERSION?=v1.2
+BUILD_FLAVOR?=
 
 # primary role based targets
 default: release
@@ -133,7 +149,7 @@ release: $(TARGET)
 $(EINSTEIN_RADIO_SRC)/erp_git_version.h:
 	@echo "#ifndef ERP_GIT_VERSION_H" > $@
 	@echo "#define ERP_GIT_VERSION_H" >> $@
-	@echo "#define ERP_GIT_VERSION \"v1.0 | BRP4 CUDA port by Alperen Yavuz\"" >> $@
+	@echo "#define ERP_GIT_VERSION \"$(ERP_VERSION)$(BUILD_FLAVOR) | BRP4 CUDA port by Alperen Yavuz\"" >> $@
 	@echo "" >> $@
 	@echo "#endif" >> $@
 
@@ -165,13 +181,13 @@ demod_binary_hs_cuda.cuda.o: $(EINSTEIN_RADIO_SRC)/cuda/app/demod_binary_hs_cuda
 # generations + lowest-arch PTX for forward compatibility), embedded into the
 # executable; cuModuleLoadData lets the driver pick the native SASS section
 db.fat: $(EINSTEIN_RADIO_SRC)/cuda/app/demod_binary_cuda.cu $(EINSTEIN_RADIO_SRC)/cuda/app/demod_binary_cuda.cuh $(DEPS)
-	"$(NVCC_BIN)" -fatbin $(NVCCFLAGS_BASE) -DUSE_CUDA "-I$(CUDA_HOME)/include" "-I$(CUFFT_HOME)/include" "-I$(EINSTEIN_RADIO_SRC)" "--compiler-bindir=$(MSVC_BIN)" $(GENCODES) $(NVCC_EXTRA) $< -o $@
+	"$(NVCC_BIN)" -fatbin $(NVCCFLAGS_BASE) -DUSE_CUDA "-I$(CUDA_HOME)/include" "-I$(CUFFT_INC)" "-I$(EINSTEIN_RADIO_SRC)" "--compiler-bindir=$(MSVC_BIN)" $(GENCODES) $(NVCC_EXTRA) $< -o $@
 
 db_dev.o: db.fat
 	ld -r -b binary db.fat -o $@
 
 dbhs.fat: $(EINSTEIN_RADIO_SRC)/cuda/app/demod_binary_hs_cuda.cu $(EINSTEIN_RADIO_SRC)/cuda/app/harmonic_summing_kernel.cuh $(DEPS)
-	"$(NVCC_BIN)" -fatbin $(NVCCFLAGS_BASE) -DUSE_CUDA "-I$(CUDA_HOME)/include" "-I$(CUFFT_HOME)/include" "-I$(EINSTEIN_RADIO_SRC)" "--compiler-bindir=$(MSVC_BIN)" $(GENCODES) $(NVCC_EXTRA) $< -o $@
+	"$(NVCC_BIN)" -fatbin $(NVCCFLAGS_BASE) -DUSE_CUDA "-I$(CUDA_HOME)/include" "-I$(CUFFT_INC)" "-I$(EINSTEIN_RADIO_SRC)" "--compiler-bindir=$(MSVC_BIN)" $(GENCODES) $(NVCC_EXTRA) $< -o $@
 
 dbhs_dev.o: dbhs.fat
 	ld -r -b binary dbhs.fat -o $@

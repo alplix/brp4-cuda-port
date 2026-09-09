@@ -37,7 +37,14 @@ __device__ float thrA[5];    /* threshold for 1st , 2nd, 4th, 8th, 16th harmonic
 __device__ int d_h_lut[16];  /* index lookup table                                  */
 __device__ int d_k_lut[16];  /* yet another index lookup table                      */
 
-#define FETCH(t, i) (__ldg(&t[i])) /* macro to perform cached global memory lookup */
+/* macro to perform cached global memory lookup.
+ * __ldg (read-only data cache) only exists on sm_35 and newer; the legacy
+ * Kepler (sm_30) and Fermi (sm_20/21) builds take the plain-load path. */
+#if defined(__CUDA_ARCH__) && (__CUDA_ARCH__ >= 350)
+#define FETCH(t, i) (__ldg(&t[i]))
+#else
+#define FETCH(t, i) (t[i])
+#endif
 
 /* macro to toggle whether only those sumspec values above a threshold value (one threhiold per
  * harmonic array) should be  */

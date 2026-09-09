@@ -41,6 +41,9 @@ CUDA_HOME?=/opt/cuda129
 BOINC_SRC?=/root/build/3rdparty/boinc-current_brp_apps
 
 NVCC_BIN?=$(CUDA_HOME)/bin/nvcc
+# redist archives install to lib/, runfile installs to lib64/ - era builds
+# override this
+CUDA_LIBDIR?=lib
 # nvcc's EDG frontend cannot parse the newest libstdc++ headers (gcc 15 on
 # current Ubuntu); point it at a supported host g++ for header parsing.
 # Device-only -fatbin builds never actually invoke it for code generation.
@@ -96,13 +99,16 @@ LIBS += -Wl,-Bstatic -lgsl -lgslcblas -lfftw3f -lxml2 -llzma -lbfd -liberty -lsf
 # without a full nvcc device-link pass.
 CUFFT_STATIC?=lib/libcufft_static_nocallback.a
 ifeq ($(CUFFT_SHARED),1)
-LIBS += -L$(CUDA_HOME)/lib -lcufft
+LIBS += -L$(CUDA_HOME)/$(CUDA_LIBDIR) -lcufft
+# the shared cuFFT calls the CUDART API internally but does not link it;
+# our driver-API-only app must provide it (statically)
+LIBS += $(CUDA_HOME)/$(CUDA_LIBDIR)/libcudart_static.a
 LDFLAGS += -Wl,-rpath,'$$ORIGIN'
 else
-LIBS += $(CUDA_HOME)/$(CUFFT_STATIC) $(CUDA_HOME)/lib/libculibos.a
+LIBS += $(CUDA_HOME)/$(CUFFT_STATIC) $(CUDA_HOME)/$(CUDA_LIBDIR)/libculibos.a
 endif
 LIBS += $(LIBS_EXTRA)
-LIBS += -L$(CUDA_HOME)/lib/stubs -lcuda
+LIBS += -L$(CUDA_HOME)/$(CUDA_LIBDIR)/stubs -lcuda
 LIBS += -lpthread -ldl -lrt -lm
 
 LDFLAGS += -static-libgcc -static-libstdc++
@@ -117,6 +123,11 @@ OBJS += db_dev.o dbhs_dev.o
 
 TARGET ?= einsteinbinary_linux_x86_64_cuda_custom
 
+# release banner (build scripts delete erp_git_version.h to force regeneration);
+# BUILD_FLAVOR is e.g. "-kepler" / "-fermi" for the legacy era builds
+ERP_VERSION?=v1.2
+BUILD_FLAVOR?=
+
 # primary role based targets
 default: release
 debug: CXXFLAGS_BASE=-DLOGLEVEL=debug -O3 -Wall
@@ -130,7 +141,7 @@ release: $(TARGET)
 $(EINSTEIN_RADIO_SRC)/erp_git_version.h:
 	@echo "#ifndef ERP_GIT_VERSION_H" > $@
 	@echo "#define ERP_GIT_VERSION_H" >> $@
-	@echo "#define ERP_GIT_VERSION \"v1.0 | BRP4 CUDA port by Alperen Yavuz\"" >> $@
+	@echo "#define ERP_GIT_VERSION \"$(ERP_VERSION)$(BUILD_FLAVOR) | BRP4 CUDA port by Alperen Yavuz\"" >> $@
 	@echo "" >> $@
 	@echo "#endif" >> $@
 
