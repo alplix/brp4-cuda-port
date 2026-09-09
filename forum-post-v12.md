@@ -1,8 +1,3 @@
-# Forum post draft — v1.2 (paste into the existing BRP4 thread as an update,
-# or use the parts marked TITLE for a new thread)
-
-TITLE: ✧ Pulsar hunting at warp speed ✧ Special BRP4 CUDA builds ✧
-
 Hello fellow sky crunchers :)
 
 Sixty years ago Jocelyn Bell's ribbon recorder traced the first flicker of a
@@ -21,72 +16,86 @@ pulsar hunt at warp speed.
 
 - A tiny router program now starts the right binary for your GPU
   automatically — one package, every NVIDIA card, no manual picking
-- **fermi build** (new, CUDA 8.0): GTX 400/500 series, GT 610/620/630,
-  GT 430/440/530/540 — needs the last Fermi driver (390.x)
-- **kepler build** (new, CUDA 10.2): GTX 600/700 series, GT 710/720/730/740,
-  GTX Titan / Titan Black / K40 / K80 — needs the last Kepler driver (470.x)
-- modern build unchanged in spirit (CUDA 12.9, GTX 900 → RTX 50, driver
-  r575+), now built with the same pipeline and a v1.2 banner
-- Two package flavours: **FULL** (router + all builds, every GPU) and
-  **CLASSIC** (single modern-only exe, v1.1 style — for those who prefer
-  it plain). Install one or the other, never both.
-- On mixed-GPU rigs the router follows BOINC's assigned GPU, so even
-  GT 710 + RTX 3080 pairs route correctly (BRP4_BUILD env var overrides)
+- NEW fermi build (CUDA 8.0): GTX 400/500 series, GT 610/620/630 (GF108/GF119),
+  GT 430/440/530/540 — last Fermi driver branch: 390/391
+- NEW kepler build (CUDA 10.2): GTX 600/700 series, GT 710/720/730/740,
+  GTX Titan / Titan Black / K40 / K80 — last Kepler driver branch: 470/474
+- modern build (CUDA 12.9, GTX 900 → RTX 50, driver r575+) now produced by
+  the same pipeline, with a v1.2 banner
+- Two package flavours: FULL (router + all builds, every GPU) and CLASSIC
+  (single modern-only exe, v1.1 style — for those who prefer it plain).
+  Install one or the other, never both.
+- On mixed-GPU rigs the router follows BOINC's assigned GPU, so even a
+  GT 710 + RTX 3080 pair routes correctly. Power users can force a build
+  with the BRP4_BUILD environment variable (modern|kepler|fermi)
 
 ★ Downloads
 
-Pick ONE package — both declare the same app, so never install both.
+Pick ONE package — both flavours declare the same app, so never install both.
 
-⬤ FULL, Windows 10/11 x64 (router, Fermi → RTX 50) —
+⬤ FULL, Windows 10/11 x64 (router, Fermi → RTX 50)
   einsteinbinary_BRP4_windows_x86_64_cuda_custom_v1.2.zip
   https://github.com/alplix/brp4-cuda-port/releases/download/v1.2/einsteinbinary_BRP4_windows_x86_64_cuda_custom_v1.2.zip
-⬤ FULL, Linux x86_64 (router, Fermi → RTX 50) —
+
+⬤ FULL, Linux x86_64 (router, Fermi → RTX 50)
   einsteinbinary_BRP4_linux_x86_64_cuda_custom_v1.2.tar.gz
   https://github.com/alplix/brp4-cuda-port/releases/download/v1.2/einsteinbinary_BRP4_linux_x86_64_cuda_custom_v1.2.tar.gz
-⬤ CLASSIC, Windows 10/11 x64 (single exe, GTX 900 → RTX 50 only, no router) —
+
+⬤ CLASSIC, Windows 10/11 x64 (single exe, GTX 900 → RTX 50 only, no router)
   einsteinbinary_BRP4_windows_x86_64_cuda_custom_v1.2_classic.zip
   https://github.com/alplix/brp4-cuda-port/releases/download/v1.2/einsteinbinary_BRP4_windows_x86_64_cuda_custom_v1.2_classic.zip
-⬤ CLASSIC, Linux x86_64 (single exe, GTX 900 → RTX 50 only, no router) —
+
+⬤ CLASSIC, Linux x86_64 (single exe, GTX 900 → RTX 50 only, no router)
   einsteinbinary_BRP4_linux_x86_64_cuda_custom_v1.2_classic.tar.gz
   https://github.com/alplix/brp4-cuda-port/releases/download/v1.2/einsteinbinary_BRP4_linux_x86_64_cuda_custom_v1.2_classic.tar.gz
-⬤ Linux ARM64 / Jetson — unchanged from v1.1, grab that package from the
-  v1.1 release page: https://github.com/alplix/brp4-cuda-port/releases/tag/v1.1
 
-Router cost, measured: ~30–70 ms once per work unit (process spawn + one
-driver query) — zero effect on computation. Classic skips even that by
+⬤ Linux ARM64 / Jetson — unchanged from v1.1, that package is still the one
+  to grab: https://github.com/alplix/brp4-cuda-port/releases/tag/v1.1
+
+Router cost, measured: ~30–70 ms once per work unit (process spawn plus one
+driver query) — zero effect on computation. CLASSIC skips even that by
 shipping the modern build only.
 
 ★ Under the hood
 
-- Each era build embeds native SASS for its own generations
-  (fermi: sm_20 · kepler: sm_30/35/37 · modern: sm_50 → sm_120 + family
-  sections) plus the lowest-arch PTX of its era, so any newer GPU can JIT it
-- The legacy toolchains were resurrected for this build: CUDA 8.0 and 10.2
-  (their installers predate modern Linux and needed a few bridges), with
-  era-matched GCC front-ends so the 2016/2019 compilers accept modern hosts
-- The old `__ldg` read-only-cache lookups now fall back to plain loads on
-  sm_20/sm_30 — the science path is untouched otherwise
-- Driver floors are set by NVIDIA, not by me: Fermi support ended at
-  390.x, Kepler at 470.x, everything Maxwell+ continues on current branches
+- Every era build embeds native SASS for its own generations
+  (fermi: sm_20 · kepler: sm_30/35/37 · modern: sm_50 → sm_120 plus family
+  sections) and the lowest-arch PTX of its era, so newer GPUs keep working
+  through the driver's JIT compiler
+- The legacy toolchains were resurrected for this release: the CUDA 8.0 and
+  10.2 installers predate modern Linux by a decade and needed a few bridges
+  to run again — the whole process is scripted and reproducible
+- The old __ldg read-only-cache lookups now fall back to plain loads on
+  sm_20/sm_30, which never had that cache; the science path is untouched
+  otherwise
+- Driver floors are NVIDIA's choice, not mine: Fermi support ended at
+  390/391, Kepler at 470/474, everything Maxwell and newer rides the
+  current branches
 
 ★ Known limitation
 
-- Current Ter5 "sband_dns" tasks belong to the newer BRP7 application whose
-  options (`--pb_min`, ...) and source are not public yet — the official
-  public BRP4 exe rejects them too. These builds target classic "-t bank"
-  style work and standalone runs.
+- The current Ter5 "sband_dns" tasks belong to the newer BRP7 application
+  whose options (--pb_min, ...) and source are not public yet — even the
+  latest official public BRP4 exe rejects them. These builds target classic
+  "-t bank" style work and standalone runs.
 
 ★ Test status
 
-- cuobjdump-verified SASS/PTX coverage for all six executables
-- All three Linux and all three Windows builds ran a complete work unit
-  end-to-end on an RTX 5070 Ti (the legacy builds via their compute_35 /
-  compute_20 PTX JIT paths) with identical candidate lists
-- RTX 5070 Ti + modern build: full end-to-end, exit 0
-- **What I cannot test here: real Fermi and Kepler hardware.** GTX 560,
-  GT 730, GTX 660, Titan Black owners — this release exists for you, and
-  your report is the one datapoint I cannot generate. If it works, tell
-  everyone; if it doesn't, post the stderr and I'll fix it.
+- cuobjdump-verified GPU code coverage on all six executables
+  (three Linux + three Windows)
+- All three builds on both platforms ran a complete work unit end-to-end on
+  an RTX 5070 Ti — the legacy builds through their compute_35 / compute_20
+  PTX JIT paths — with identical candidate lists
+- Deployment was verified the way BOINC actually runs it: the router was
+  exercised from a simulated slot that contained only itself and BOINC's
+  init_data.xml, with the era builds sitting in the project directory
+  exactly where the client expects them
+- What I cannot test here: real Fermi and Kepler hardware. GTX 560, GT 730,
+  GTX 660, Titan Black owners — this release exists for you, and your report
+  is the one datapoint I cannot generate. If it works, tell everyone; if it
+  doesn't, post the stderr and I'll fix it.
+
+Same GPLv2+ license as the upstream source.
 
 Feedback is very welcome — especially from the old-GPU crowd :)
 
