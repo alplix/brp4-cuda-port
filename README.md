@@ -70,14 +70,20 @@ is the battle-tested upstream code — the plumbing around it is brand new.
 
 ## Downloads & supported platforms (v1.2)
 
-Two flavours per platform — install ONE of them (both declare the same app):
+One package per GPU family — grab the one that matches your card, drop it in.
+Not sure or running mixed GPUs? Take the router package, it auto-picks.
+Install only ONE package (all declare the same app).
 
-| Package | Contents | Supported devices |
+| Package | Cards | Notes |
 |---|---|---|
-| **Windows x64 FULL** `_v1.2.zip` | router + all 3 era builds + cuFFT DLLs | **Every NVIDIA GPU**: GTX 400/500 (Fermi) · GTX 600/700 + GT 710–740 (Kepler) · GTX 900 → RTX 50 (Maxwell → Blackwell) |
-| **Windows x64 CLASSIC** `_v1.2_classic.zip` | single modern exe, no router | GTX 900 → RTX 50 only |
-| **Linux x86_64 FULL** `_v1.2.tar.gz` | router + all 3 era builds + era cuFFT libs | Same GPU range as Windows FULL |
-| **Linux x86_64 CLASSIC** `_v1.2_classic.tar.gz` | single modern exe, no router | GTX 900 → RTX 50 only |
+| **Windows x64** `..._cuda_custom_v1.2.zip` | GTX 900 → RTX 50 | single modern exe (CUDA 12.9), `cufft64_11.dll` included |
+| **Windows x64** `..._cuda102_kepler_v1.2.zip` | GTX 600/700, GT 710–740, Titan | single kepler exe (CUDA 10.2), `cufft64_10.dll` included |
+| **Windows x64** `..._cuda80_fermi_v1.2.zip` | GTX 400/500, GT 610/620/630 | single fermi exe (CUDA 8.0), `cufft64_80.dll` included |
+| **Windows x64** `..._cuda_custom_router_v1.2.zip` | every NVIDIA GPU | router auto-picks among all three builds |
+| **Linux x86_64** `..._cuda_custom_v1.2.tar.gz` | GTX 900 → RTX 50 | single modern exe, cuFFT static |
+| **Linux x86_64** `..._cuda102_kepler_v1.2.tar.gz` | GTX 600/700, GT 710–740, Titan | single kepler exe + `libcufft.so.10` |
+| **Linux x86_64** `..._cuda80_fermi_v1.2.tar.gz` | GTX 400/500, GT 610/620/630 | single fermi exe + `libcufft.so.8.0` |
+| **Linux x86_64** `..._cuda_custom_router_v1.2.tar.gz` | every NVIDIA GPU | router auto-picks among all three builds |
 | **Linux ARM64** `_v1.1.tar.gz` | single aarch64 exe | Jetson TX1→Orin, ARM servers, DGX Spark |
 
 Driver floors (set by NVIDIA's support lifecycle): modern build r575+,

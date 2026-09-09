@@ -1,0 +1,30 @@
+<app_info>
+    <app>
+        <name>einsteinbinary_BRP4</name>
+        <user_friendly_name>Einstein Binary Radio Pulsar Search (BRP4)</user_friendly_name>
+    </app>
+    <file_info>
+        <name>einsteinbinary_BRP4_linux_x86_64_cuda102_kepler</name>
+        <executable/>
+    </file_info>
+    <file_info>
+        <name>libcufft.so.10</name>
+    </file_info>
+    <app_version>
+        <app_name>einsteinbinary_BRP4</app_name>
+        <version_num>99</version_num>
+        <plan_class>BRP4NVIDIA</plan_class>
+        <avg_ncpus>0.25</avg_ncpus>
+        <max_ncpus>0.50</max_ncpus>
+        <flops>3000000000000</flops>
+        <gpu_usage>0.50</gpu_usage>
+        <coproc>
+            <type>CUDA</type>
+            <count>1</count>
+        </coproc>
+        <file_ref>
+            <file_name>einsteinbinary_BRP4_linux_x86_64_cuda102_kepler</file_name>
+            <main_program/>
+        </file_ref>
+    </app_version>
+</app_info>

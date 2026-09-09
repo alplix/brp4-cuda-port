@@ -22,39 +22,40 @@ pulsar hunt at warp speed.
   GTX Titan / Titan Black / K40 / K80 — last Kepler driver branch: 470/474
 - modern build (CUDA 12.9, GTX 900 → RTX 50, driver r575+) now produced by
   the same pipeline, with a v1.2 banner
-- Two package flavours: FULL (router + all builds, every GPU) and CLASSIC
-  (single modern-only exe, v1.1 style — for those who prefer it plain).
-  Install one or the other, never both.
+- Per-architecture packages: grab the one that matches your card, drop it
+  in, done — plus an all-in-one router package that auto-picks (mixed rigs,
+  or if you would rather not think about it)
 - On mixed-GPU rigs the router follows BOINC's assigned GPU, so even a
   GT 710 + RTX 3080 pair routes correctly. Power users can force a build
   with the BRP4_BUILD environment variable (modern|kepler|fermi)
 
 ★ Downloads
 
-Pick ONE package — both flavours declare the same app, so never install both.
+Pick the package that matches your GPU family. Install only ONE of them —
+they all declare the same app, so never install two.
 
-⬤ FULL, Windows 10/11 x64 (router, Fermi → RTX 50)
-  einsteinbinary_BRP4_windows_x86_64_cuda_custom_v1.2.zip
+⬤ GTX 900 → RTX 50 (modern), Windows: einsteinbinary_BRP4_windows_x86_64_cuda_custom_v1.2.zip
   https://github.com/alplix/brp4-cuda-port/releases/download/v1.2/einsteinbinary_BRP4_windows_x86_64_cuda_custom_v1.2.zip
-
-⬤ FULL, Linux x86_64 (router, Fermi → RTX 50)
-  einsteinbinary_BRP4_linux_x86_64_cuda_custom_v1.2.tar.gz
+⬤ GTX 900 → RTX 50 (modern), Linux: einsteinbinary_BRP4_linux_x86_64_cuda_custom_v1.2.tar.gz
   https://github.com/alplix/brp4-cuda-port/releases/download/v1.2/einsteinbinary_BRP4_linux_x86_64_cuda_custom_v1.2.tar.gz
-
-⬤ CLASSIC, Windows 10/11 x64 (single exe, GTX 900 → RTX 50 only, no router)
-  einsteinbinary_BRP4_windows_x86_64_cuda_custom_v1.2_classic.zip
-  https://github.com/alplix/brp4-cuda-port/releases/download/v1.2/einsteinbinary_BRP4_windows_x86_64_cuda_custom_v1.2_classic.zip
-
-⬤ CLASSIC, Linux x86_64 (single exe, GTX 900 → RTX 50 only, no router)
-  einsteinbinary_BRP4_linux_x86_64_cuda_custom_v1.2_classic.tar.gz
-  https://github.com/alplix/brp4-cuda-port/releases/download/v1.2/einsteinbinary_BRP4_linux_x86_64_cuda_custom_v1.2_classic.tar.gz
-
+⬤ GTX 600/700 + GT 7xx (kepler), Windows: einsteinbinary_BRP4_windows_x86_64_cuda102_kepler_v1.2.zip
+  https://github.com/alplix/brp4-cuda-port/releases/download/v1.2/einsteinbinary_BRP4_windows_x86_64_cuda102_kepler_v1.2.zip
+⬤ GTX 600/700 + GT 7xx (kepler), Linux: einsteinbinary_BRP4_linux_x86_64_cuda102_kepler_v1.2.tar.gz
+  https://github.com/alplix/brp4-cuda-port/releases/download/v1.2/einsteinbinary_BRP4_linux_x86_64_cuda102_kepler_v1.2.tar.gz
+⬤ GTX 400/500 + GT 61x/62x/63x (fermi), Windows: einsteinbinary_BRP4_windows_x86_64_cuda80_fermi_v1.2.zip
+  https://github.com/alplix/brp4-cuda-port/releases/download/v1.2/einsteinbinary_BRP4_windows_x86_64_cuda80_fermi_v1.2.zip
+⬤ GTX 400/500 + GT 61x/62x/63x (fermi), Linux: einsteinbinary_BRP4_linux_x86_64_cuda80_fermi_v1.2.tar.gz
+  https://github.com/alplix/brp4-cuda-port/releases/download/v1.2/einsteinbinary_BRP4_linux_x86_64_cuda80_fermi_v1.2.tar.gz
+⬤ ANY NVIDIA GPU / mixed rigs (router + all builds), Windows: einsteinbinary_BRP4_windows_x86_64_cuda_custom_router_v1.2.zip
+  https://github.com/alplix/brp4-cuda-port/releases/download/v1.2/einsteinbinary_BRP4_windows_x86_64_cuda_custom_router_v1.2.zip
+⬤ ANY NVIDIA GPU / mixed rigs (router + all builds), Linux: einsteinbinary_BRP4_linux_x86_64_cuda_custom_router_v1.2.tar.gz
+  https://github.com/alplix/brp4-cuda-port/releases/download/v1.2/einsteinbinary_BRP4_linux_x86_64_cuda_custom_router_v1.2.tar.gz
 ⬤ Linux ARM64 / Jetson — unchanged from v1.1, that package is still the one
   to grab: https://github.com/alplix/brp4-cuda-port/releases/tag/v1.1
 
 Router cost, measured: ~30–70 ms once per work unit (process spawn plus one
-driver query) — zero effect on computation. CLASSIC skips even that by
-shipping the modern build only.
+driver query) — zero effect on computation. The per-architecture packages
+skip even that by shipping a single build.
 
 ★ Under the hood
 
