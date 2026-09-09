@@ -46,8 +46,9 @@ is the battle-tested upstream code — the plumbing around it is brand new.
   era) so any newer GPU JIT-compiles them — which is also how the legacy
   builds were functionally validated on a modern card.
 - **BOINC-aware routing.** The router reads BOINC's `init_data.xml` for the
-  assigned GPU device (and honours `--device`), so even mixed-generation
-  rigs route correctly; `BRP4_BUILD=modern|kepler|fermi` overrides.
+  assigned GPU device (and honours `--device`); `BRP4_BUILD=modern|kepler|fermi`
+  overrides the choice. Note: one driver must support every GPU in the box —
+  very old and very new cards cannot share a single driver.
 - **Single-file Linux binaries.** The modern build links cuFFT statically.
   The kepler/fermi builds carry their era cuFFT as one small `.so` next to
   the binary (NVIDIA's static cuFFT from those toolkits needs a device-link

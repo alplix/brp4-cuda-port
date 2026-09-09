@@ -35,10 +35,8 @@ the matching binary automatically:
   CC 5.x - 12.x           -> modern build  GTX 900/1000, RTX 20/30/40/50
                                            (Maxwell -> Blackwell)
 
-On a mixed-GPU system the router follows the same device choice as the
-application itself (BOINC's assigned GPU, else the most capable one).
-You can force a specific build with the BRP4_BUILD environment variable
-(modern|kepler|fermi).
+Remember: one driver must support every GPU in the machine - very old and
+very new cards cannot share a single driver. Install only ONE package.
 
 Requirements per build
 ----------------------

@@ -21,9 +21,10 @@ picks the right binary for your GPU automatically:
 - **modern build** (CUDA 12.9, SASS sm_50→120 + family, driver r575+):
   GTX 900/1000 → RTX 50 series — native code, no JIT
 
-The router reads the compute capability from the driver (BOINC-assigned
-device aware, `BRP4_BUILD` env override), so one package serves every card
-and mixed-GPU rigs route correctly. Each era links its own cuFFT
+The router reads the compute capability from the driver (`BRP4_BUILD` env
+override), so one package serves every card. Note: a single driver must
+support every GPU in the machine - very old and very new cards cannot share
+one driver. Each era links its own cuFFT
 (`cufft64_11/10/80.dll` on Windows, small `.so` files on Linux — names
 don't collide). All builds by Alperen Yavuz; GPLv2+ like the upstream source.
 
