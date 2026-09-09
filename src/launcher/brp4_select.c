@@ -160,15 +160,17 @@ static const char *flavor_for_cc(int maj) {
 
 /* directory of this executable, without trailing separator */
 #ifdef _WIN32
-static int own_dir(wchar_t *dir, size_t dirChars) {
-  DWORD n = GetModuleFileNameW(NULL, dir, (DWORD)dirChars);
-  if (n == 0 || n >= dirChars) return -1;
-  wchar_t *cut = wcsrchr(dir, L'\\');
-  wchar_t *cut2 = wcsrchr(dir, L'/');
+static int own_dir(char *dir, size_t dirLen) {
+  wchar_t wdir[MAX_PATH];
+  DWORD n = GetModuleFileNameW(NULL, wdir, MAX_PATH);
+  if (n == 0 || n >= MAX_PATH) return -1;
+  wchar_t *cut = wcsrchr(wdir, L'\\');
+  wchar_t *cut2 = wcsrchr(wdir, L'/');
   if (cut2 > cut) cut = cut2;
   if (cut == NULL) return -1;
   *cut = L'\0';
-  return 0;
+  int m = WideCharToMultiByte(CP_UTF8, 0, wdir, -1, dir, (int)dirLen, NULL, NULL);
+  return (m > 0) ? 0 : -1;
 }
 #else
 static int own_dir(char *dir, size_t dirLen) {
@@ -207,6 +209,59 @@ static int find_target_device(int argc, char **argv) {
   }
   fclose(f);
   return val;
+}
+
+/* read a single-tag value out of init_data.xml (e.g. "<project_dir>") */
+static int read_init_data_tag(const char *tag, char *out, size_t outLen) {
+  FILE *f = fopen("init_data.xml", "r");
+  if (f == NULL) return -1;
+  char line[1024];
+  int found = -1;
+  while (fgets(line, sizeof(line), f) != NULL) {
+    char *p = strstr(line, tag);
+    if (p != NULL) {
+      char *open = strchr(p, '>');   /* the tag's own closing '>' */
+      if (open != NULL) {
+        char *close = strchr(open + 1, '<');
+        if (close != NULL && close > open + 1) {
+          size_t n = (size_t)(close - open - 1);
+          if (n >= outLen) n = outLen - 1;
+          memcpy(out, open + 1, n);
+          out[n] = '\0';
+          found = 0;
+        }
+      }
+      break;
+    }
+  }
+  fclose(f);
+  return found;
+}
+
+/* does this path exist as a runnable file? */
+static int file_ok(const char *path) {
+#ifdef _WIN32
+  DWORD attr = GetFileAttributesA(path);
+  return attr != INVALID_FILE_ATTRIBUTES && !(attr & FILE_ATTRIBUTE_DIRECTORY);
+#else
+  return access(path, X_OK) == 0;
+#endif
+}
+
+/* strip the last path component: "proj/slots/3" -> "proj/slots" */
+static void parent_dir(const char *in, char *out, size_t outLen) {
+  size_t len = strlen(in);
+  while (len > 1 && (in[len - 1] == '/' || in[len - 1] == '\\')) len--;
+  size_t s = len;
+  while (s > 0 && in[s - 1] != '/' && in[s - 1] != '\\') s--;
+  if (s == 0) {
+    snprintf(out, outLen, "%s", in);
+    return;
+  }
+  size_t keep = (s == 1) ? 1 : s - 1;
+  if (keep >= outLen) keep = outLen - 1;
+  memcpy(out, in, keep);
+  out[keep] = '\0';
 }
 
 int main(int argc, char **argv) {
@@ -273,18 +328,60 @@ int main(int argc, char **argv) {
     }
   }
 
-#ifdef _WIN32
-  wchar_t dir[MAX_PATH];
-  if (own_dir(dir, MAX_PATH) != 0) {
-    fprintf(stderr, "brp4_select: cannot determine launcher directory.\n");
+  /* Where is the era binary? BOINC hardlinks/copies only the MAIN program
+   * (this router) and file_ref'd files into the slot directory - the other
+   * era builds stay in the project directory. Search, in order:
+     1. the launcher's own directory            (standalone runs)
+     2. its parent                              (BOINC: <project>/slots/<n> -> <project>)
+     3. <project_dir> from init_data.xml        (authoritative BOINC answer)
+     4. the current working directory */
+  enum { MAX_DIRS = 4 };
+  char dirs[MAX_DIRS][4096];
+  int ndirs = 0;
+  char self[4096];
+  if (own_dir(self, sizeof(self)) == 0) {
+    snprintf(dirs[ndirs++], sizeof(dirs[0]), "%s", self);
+    char par[4096];
+    parent_dir(self, par, sizeof(par));
+    if (par[0] != '\0' && strcmp(par, self) != 0 && ndirs < MAX_DIRS)
+      snprintf(dirs[ndirs++], sizeof(dirs[0]), "%s", par);
+  }
+  char pdir[4096] = {0};
+  if (read_init_data_tag("<project_dir>", pdir, sizeof(pdir)) == 0 &&
+      pdir[0] != '\0' && ndirs < MAX_DIRS)
+    snprintf(dirs[ndirs++], sizeof(dirs[0]), "%s", pdir);
+  if (ndirs < MAX_DIRS)
+    snprintf(dirs[ndirs++], sizeof(dirs[0]), "%s", ".");
+
+  char exePath[8192] = {0};
+  char bname[128];
+  snprintf(bname, sizeof(bname), "%s", binary);
+  int found = 0, di;
+  for (di = 0; di < ndirs; di++) {
+    snprintf(exePath, sizeof(exePath), "%s/%s", dirs[di], bname);
+    if (file_ok(exePath)) {
+      found = 1;
+      break;
+    }
+  }
+  if (!found) {
+    fprintf(stderr, "brp4_select: cannot find %s in any of:\n", binary);
+    for (di = 0; di < ndirs; di++)
+      fprintf(stderr, "  %s\n", dirs[di]);
     return 1;
   }
-  wchar_t wbinary[256];
-  MultiByteToWideChar(CP_UTF8, 0, binary, -1, wbinary, 256);
-  wchar_t exePath[MAX_PATH * 2];
-  _snwprintf(exePath, sizeof(exePath) / sizeof(exePath[0]) - 1,
-             L"%ls\\%ls", dir, wbinary);
-  exePath[sizeof(exePath) / sizeof(exePath[0]) - 1] = L'\0';
+
+  if (ccMaj > 0) {
+    fprintf(stderr, "brp4_select: %s (CC %d.%d) -> %s build\n",
+            devName, ccMaj, ccMin, flavor);
+  } else {
+    fprintf(stderr, "brp4_select: BRP4_BUILD=%s override -> %s build\n",
+            flavor, flavor);
+  }
+
+#ifdef _WIN32
+  wchar_t wexePath[8192];
+  MultiByteToWideChar(CP_UTF8, 0, exePath, -1, wexePath, 8192);
 
   /* rebuild the command line: quoted child path + original arguments */
   LPCWSTR rawCmd = GetCommandLineW();
@@ -297,27 +394,19 @@ int main(int argc, char **argv) {
     while (*args != L'\0' && *args != L' ' && *args != L'\t') args++;
   }
   while (*args == L' ' || *args == L'\t') args++;
-  size_t cmdLen = lstrlenW(exePath) + 3 + lstrlenW(args);
+  size_t cmdLen = lstrlenW(wexePath) + 3 + lstrlenW(args);
   wchar_t *cmdLine = (wchar_t *)malloc(cmdLen * sizeof(wchar_t));
   if (cmdLine == NULL) return 1;
-  _snwprintf(cmdLine, cmdLen - 1, L"\"%ls\" %ls", exePath, args);
+  _snwprintf(cmdLine, cmdLen - 1, L"\"%ls\" %ls", wexePath, args);
   cmdLine[cmdLen - 1] = L'\0';
 
   STARTUPINFOW si;
   PROCESS_INFORMATION pi;
   memset(&si, 0, sizeof(si));
   si.cb = sizeof(si);
-  if (ccMaj > 0) {
-    fprintf(stderr, "brp4_select: %s (CC %d.%d) -> %s build\n",
-            devName, ccMaj, ccMin, flavor);
-  } else {
-    fprintf(stderr, "brp4_select: BRP4_BUILD=%s override -> %s build\n",
-            flavor, flavor);
-  }
-  if (!CreateProcessW(exePath, cmdLine, NULL, NULL, TRUE, 0, NULL, NULL, &si, &pi)) {
-    fprintf(stderr, "brp4_select: cannot launch %s (Win32 error %lu) - "
-            "is the file present next to the launcher?\n", binary,
-            (unsigned long)GetLastError());
+  if (!CreateProcessW(wexePath, cmdLine, NULL, NULL, TRUE, 0, NULL, NULL, &si, &pi)) {
+    fprintf(stderr, "brp4_select: cannot launch %s (Win32 error %lu)\n",
+            exePath, (unsigned long)GetLastError());
     free(cmdLine);
     return 1;
   }
@@ -329,31 +418,9 @@ int main(int argc, char **argv) {
   CloseHandle(pi.hProcess);
   return (int)exitCode;
 #else
-  char dir[4096];
-  if (own_dir(dir, sizeof(dir)) != 0) {
-    fprintf(stderr, "brp4_select: cannot determine launcher directory.\n");
-    return 1;
-  }
-  static char exePath[4600];
-  snprintf(exePath, sizeof(exePath), "%s/%s", dir, binary);
-  if (flavor != NULL && ccMaj > 0) {
-    fprintf(stderr, "brp4_select: %s (CC %d.%d) -> %s build\n",
-            devName, ccMaj, ccMin, flavor);
-  } else {
-    fprintf(stderr, "brp4_select: BRP4_BUILD=%s override -> %s build\n",
-            flavor, flavor);
-  }
   execv(exePath, argv);
-  {
-    /* transient diagnostics: ENOENT on an existing file has happened in the
-       field before - report exactly what the loader saw */
-    char rp[4096] = {0};
-    ssize_t rn = readlink("/proc/self/exe", rp, sizeof(rp) - 1);
-    if (rn > 0) rp[rn] = '\0';
-    fprintf(stderr, "brp4_select: cannot launch (errno %d: %s) - "
-            "exePath=[%s] launcher=%s target access=%d\n",
-            errno, strerror(errno), exePath, rp, access(exePath, X_OK) == 0);
-  }
+  fprintf(stderr, "brp4_select: cannot launch %s (errno %d: %s)\n",
+          exePath, errno, strerror(errno));
   return 1;
 #endif
 }
