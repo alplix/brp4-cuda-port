@@ -70,11 +70,15 @@ is the battle-tested upstream code — the plumbing around it is brand new.
 
 ## Downloads & supported platforms (v1.2)
 
-| Platform | Package | Supported devices |
+Two flavours per platform — install ONE of them (both declare the same app):
+
+| Package | Contents | Supported devices |
 |---|---|---|
-| **Windows 10/11 x64** | `einsteinbinary_BRP4_windows_x86_64_cuda_custom_v1.2.zip` | **Every NVIDIA GPU**: GTX 400/500 (Fermi) · GTX 600/700 + GT 710–740 (Kepler) · GTX 900 → RTX 50 (Maxwell → Blackwell) |
-| **Linux x86_64** | `einsteinbinary_BRP4_linux_x86_64_cuda_custom_v1.2.tar.gz` | Same GPU range as Windows |
-| **Linux ARM64** | `einsteinbinary_BRP4_linux_aarch64_cuda_custom_v1.1.tar.gz` | **NVIDIA Jetson** family — TX1/TX2 (sm_53/62), Xavier (sm_72), Orin (sm_87); newer SoCs via PTX JIT |
+| **Windows x64 FULL** `_v1.2.zip` | router + all 3 era builds + cuFFT DLLs | **Every NVIDIA GPU**: GTX 400/500 (Fermi) · GTX 600/700 + GT 710–740 (Kepler) · GTX 900 → RTX 50 (Maxwell → Blackwell) |
+| **Windows x64 CLASSIC** `_v1.2_classic.zip` | single modern exe, no router | GTX 900 → RTX 50 only |
+| **Linux x86_64 FULL** `_v1.2.tar.gz` | router + all 3 era builds + era cuFFT libs | Same GPU range as Windows FULL |
+| **Linux x86_64 CLASSIC** `_v1.2_classic.tar.gz` | single modern exe, no router | GTX 900 → RTX 50 only |
+| **Linux ARM64** `_v1.1.tar.gz` | single aarch64 exe | Jetson TX1→Orin, ARM servers, DGX Spark |
 
 Driver floors (set by NVIDIA's support lifecycle): modern build r575+,
 kepler build 470.x (last Kepler branch), fermi build 390.x (last Fermi

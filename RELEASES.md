@@ -27,10 +27,14 @@ and mixed-GPU rigs route correctly. Each era links its own cuFFT
 (`cufft64_11/10/80.dll` on Windows, small `.so` files on Linux — names
 don't collide). All builds by Alperen Yavuz; GPLv2+ like the upstream source.
 
+Two flavours per platform — install ONE of them (both declare the same app):
+
 | Asset | Contents |
 |---|---|
-| `einsteinbinary_BRP4_windows_x86_64_cuda_custom_v1.2.zip` | router + 3 builds + 3 cuFFT DLLs + app_info/app_config + README |
-| `einsteinbinary_BRP4_linux_x86_64_cuda_custom_v1.2.tar.gz` | router + 3 builds + 2 era cuFFT libs + app_info/app_config + README |
+| `einsteinbinary_BRP4_windows_x86_64_cuda_custom_v1.2.zip` | **FULL** — router + modern/kepler/fermi builds + 3 cuFFT DLLs + app_info/app_config + README |
+| `einsteinbinary_BRP4_linux_x86_64_cuda_custom_v1.2.tar.gz` | **FULL** — router + modern/kepler/fermi builds + 2 era cuFFT libs + app_info/app_config + README |
+| `einsteinbinary_BRP4_windows_x86_64_cuda_custom_v1.2_classic.zip` | **CLASSIC** — single modern-only exe (GTX 900+), no router, + `cufft64_11.dll` + app_info/app_config + README |
+| `einsteinbinary_BRP4_linux_x86_64_cuda_custom_v1.2_classic.tar.gz` | **CLASSIC** — single modern-only exe (GTX 900+), no router, static cuFFT + app_info/app_config + README |
 | `einsteinbinary_BRP4_linux_aarch64_cuda_custom_v1.1.tar.gz` | ARM64 — unchanged from v1.1 (Jetson TX1→Orin, ARM servers, DGX Spark) |
 
 **Known limitation:** current Ter5 `sband_dns` tasks require unpublished

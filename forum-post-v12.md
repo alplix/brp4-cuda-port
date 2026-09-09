@@ -27,17 +27,34 @@ pulsar hunt at warp speed.
   GTX Titan / Titan Black / K40 / K80 — needs the last Kepler driver (470.x)
 - modern build unchanged in spirit (CUDA 12.9, GTX 900 → RTX 50, driver
   r575+), now built with the same pipeline and a v1.2 banner
+- Two package flavours: **FULL** (router + all builds, every GPU) and
+  **CLASSIC** (single modern-only exe, v1.1 style — for those who prefer
+  it plain). Install one or the other, never both.
 - On mixed-GPU rigs the router follows BOINC's assigned GPU, so even
   GT 710 + RTX 3080 pairs route correctly (BRP4_BUILD env var overrides)
 
 ★ Downloads
 
-⬤ Windows 10/11 x64 — einsteinbinary_BRP4_windows_x86_64_cuda_custom_v1.2.zip
-  (router + 3 builds + cuFFT DLLs + app_info/app_config + README)
-⬤ Linux x86_64 — einsteinbinary_BRP4_linux_x86_64_cuda_custom_v1.2.tar.gz
-  (router + 3 builds + era cuFFT libs + app_info/app_config + README)
+Pick ONE package — both declare the same app, so never install both.
+
+⬤ FULL, Windows 10/11 x64 (router, Fermi → RTX 50) —
+  einsteinbinary_BRP4_windows_x86_64_cuda_custom_v1.2.zip
+  https://github.com/alplix/brp4-cuda-port/releases/download/v1.2/einsteinbinary_BRP4_windows_x86_64_cuda_custom_v1.2.zip
+⬤ FULL, Linux x86_64 (router, Fermi → RTX 50) —
+  einsteinbinary_BRP4_linux_x86_64_cuda_custom_v1.2.tar.gz
+  https://github.com/alplix/brp4-cuda-port/releases/download/v1.2/einsteinbinary_BRP4_linux_x86_64_cuda_custom_v1.2.tar.gz
+⬤ CLASSIC, Windows 10/11 x64 (single exe, GTX 900 → RTX 50 only, no router) —
+  einsteinbinary_BRP4_windows_x86_64_cuda_custom_v1.2_classic.zip
+  https://github.com/alplix/brp4-cuda-port/releases/download/v1.2/einsteinbinary_BRP4_windows_x86_64_cuda_custom_v1.2_classic.zip
+⬤ CLASSIC, Linux x86_64 (single exe, GTX 900 → RTX 50 only, no router) —
+  einsteinbinary_BRP4_linux_x86_64_cuda_custom_v1.2_classic.tar.gz
+  https://github.com/alplix/brp4-cuda-port/releases/download/v1.2/einsteinbinary_BRP4_linux_x86_64_cuda_custom_v1.2_classic.tar.gz
 ⬤ Linux ARM64 / Jetson — unchanged from v1.1, grab that package from the
-  v1.1 release page
+  v1.1 release page: https://github.com/alplix/brp4-cuda-port/releases/tag/v1.1
+
+Router cost, measured: ~30–70 ms once per work unit (process spawn + one
+driver query) — zero effect on computation. Classic skips even that by
+shipping the modern build only.
 
 ★ Under the hood
 

@@ -44,5 +44,26 @@ echo "===== arch verification (modern win exe) ====="
 echo "===== creating archives ====="
 cd "$DIST/linux" && tar czf "$DIST/einsteinbinary_BRP4_linux_x86_64_cuda_custom_v1.2.tar.gz" ./*
 cd "$DIST/win" && zip -q -r "$DIST/einsteinbinary_BRP4_windows_x86_64_cuda_custom_v1.2.zip" ./*
+
+echo "===== staging CLASSIC packages (single modern exe, no router) ====="
+LC="$DIST/linux-classic"
+mkdir -p "$LC"
+cp /root/build/modern_rebuild/einsteinbinary_linux_x86_64_cuda_custom "$LC/einsteinbinary_BRP4_linux_x86_64_cuda_custom"
+strip "$LC/einsteinbinary_BRP4_linux_x86_64_cuda_custom" 2>/dev/null || true
+chmod +x "$LC/einsteinbinary_BRP4_linux_x86_64_cuda_custom"
+cp "$REPO/packaging/app_info.linux-classic.xml" "$LC/app_info.xml"
+cp "$REPO/packaging/app_config.xml" "$LC/app_config.xml"
+cp "$REPO/packaging/readme.linux-classic.txt" "$LC/README.txt"
+cd "$LC" && tar czf "$DIST/einsteinbinary_BRP4_linux_x86_64_cuda_custom_v1.2_classic.tar.gz" ./*
+
+WC="$DIST/win-classic"
+mkdir -p "$WC"
+cp /root/build/wera_modern/einsteinbinary_BRP4_windows_x86_64_cuda_custom.exe "$WC/"
+cp /root/wx/imports/cufft64_11.dll "$WC/"
+cp "$REPO/packaging/app_info.windows-classic.xml" "$WC/app_info.xml"
+cp "$REPO/packaging/app_config.xml" "$WC/app_config.xml"
+cp "$REPO/packaging/readme.windows-classic.txt" "$WC/README.txt"
+cd "$WC" && zip -q -r "$DIST/einsteinbinary_BRP4_windows_x86_64_cuda_custom_v1.2_classic.zip" ./*
+
 ls -la "$DIST"/*.tar.gz "$DIST"/*.zip
 echo "PACKAGE_DONE"
