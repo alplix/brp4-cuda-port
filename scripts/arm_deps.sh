@@ -23,10 +23,13 @@ print(d['relative_path'])" $comp)
   if [ ! -s "$F" ]; then curl -fsSL "https://developer.download.nvidia.com/compute/cuda/redist/$REL" -o "$F"; fi
   tar xf "$F" -C /opt/cuda129-arm64
 done
-mv /opt/cuda129-arm64/cuda_nvcc-linux-aarch64-* /tmp_mvnvcc 2>/dev/null || true
-# merge layout like x86_64: everything under one root
+# merge layout like x86_64: everything under one root (three separate
+# extracted dirs: cuda_nvcc-*, cuda_cudart-*, libcufft-* — only the first two
+# share the "cuda_*" prefix, so match both patterns explicitly)
 mkdir -p /opt/cuda129-arm64/root
-for d in /opt/cuda129-arm64/cuda_*; do cp -a "$d"/. /opt/cuda129-arm64/root/; done
+for d in /opt/cuda129-arm64/cuda_*-linux-aarch64-* /opt/cuda129-arm64/libcufft-linux-aarch64-*; do
+  cp -a "$d"/. /opt/cuda129-arm64/root/
+done
 ls /opt/cuda129-arm64/root/bin/nvcc /opt/cuda129-arm64/root/lib/libcufft_static_nocallback.a /opt/cuda129-arm64/root/lib/stubs/libcuda.so 2>&1 | tail -4
 echo "--- nvcc arch check:"
 file /opt/cuda129-arm64/root/bin/nvcc | cut -d, -f1-2
