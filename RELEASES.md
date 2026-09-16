@@ -6,9 +6,9 @@ blurbs in section **B**.
 
 ---
 
-## v1.3 — correctness fix + faster template loop (draft, binaries not yet built)
+## v1.3 — correctness fix + faster template loop, router repaired
 
-**BRP4 CUDA port v1.3 — results now match the upstream CPU app; ~24 % faster per template**
+**BRP4 CUDA port v1.3 — results now match the upstream CPU app; ~24 % faster per template; Windows router repaired**
 
 - **Fix:** the resampling/padding kernels were launched with truncated grids
   (`nsamples / blocksize`). When the padded length is not a multiple of 384 and
@@ -28,26 +28,49 @@ blurbs in section **B**.
   2.36 s → 1.90 s wall (Windows native), same on Linux.
 - **Windows router fixed (two bugs):** the v1.2 Windows router package shipped
   a *Linux ELF* under the name `einsteinbinary_BRP4_windows_x86_64_router.exe`
-  (the rebuild script compiled it with the native gcc), so that package could
-  never have started on Windows — the per-architecture v1.2 Windows packages
-  are unaffected. The router source itself also dropped the last character of
-  the forwarded command line (`_snwprintf` off-by-one), which made the child
-  reject its options with exit code 4. Both are fixed; the router now launches
-  the modern/kepler/fermi exes natively on Windows with identical candidate
-  lists to direct runs, in automatic and `BRP4_BUILD=` override modes.
-- **All six era executables rebuilt and re-verified** from the v1.3 sources
-  (CUDA 12.9 / 10.2 / 8.0 fatbins, Linux + Windows): on an RTX 5070 Ti the
-  kepler and fermi builds (through their compute_35 / compute_20 PTX JIT) match
-  the CPU reference 100/100 like the modern build.
+  (the packaging script compiled it with the native gcc), so that package
+  could never have started on Windows — the per-architecture v1.2 Windows
+  packages are unaffected. The router source itself also dropped the last
+  character of the forwarded command line (`_snwprintf` off-by-one), which
+  made the child reject its options with exit code 4. Both are fixed and
+  re-verified: the router now launches the modern/kepler/fermi exes on
+  Windows and Linux with identical candidate lists to direct runs, in
+  automatic and `BRP4_BUILD=` override modes.
+- **All eight packages rebuilt from the v1.3 sources and verified end-to-end**
+  (extract-fresh-archive + run a full synthetic work unit, on an RTX 5070 Ti):
+  modern (native SASS), kepler and fermi (through their compute_35 /
+  compute_20 PTX JIT paths) and both routers all reach the CPU-reference
+  candidate list.
 - **Cleanup:** OpenCL/Metal/CPU backends, non-CUDA makefiles, cuPrintf and
   the upstream `build.sh` removed; scripts no longer depend on a hard-coded
-  checkout path and no longer pin the banner to v1.2; `test/run_cuda_test.sh`
-  takes the executable as argument and `make_synthetic --amp` generates
-  weak-signal data.
+  checkout path or pin the banner to v1.2; `test/run_cuda_test.sh` takes the
+  executable as argument and `make_synthetic --amp` generates weak-signal
+  data; packaging is now version-parameterized (`scripts/legacy/package.sh`,
+  `VERSION=v1.3` by default).
 
-Rebuild all era packages with `scripts/legacy/rebuild_all.sh`, adapt the
-archive names in `scripts/legacy/package_v12.sh` to v1.3 and re-run
-`scripts/legacy/verify_release_*.sh` before publishing.
+One package per GPU family — grab the one that matches your card (drop-in,
+no router), or the router package that auto-picks. Install only ONE of them
+(all declare the same app):
+
+| Asset | Cards |
+|---|---|
+| `einsteinbinary_BRP4_windows_x86_64_modern_v1.3.zip` | GTX 900 → RTX 50 (modern exe + `cufft64_11.dll`) |
+| `einsteinbinary_BRP4_windows_x86_64_kepler_v1.3.zip` | GTX 600/700, GT 710–740, Titan (kepler exe + `cufft64_10.dll`) |
+| `einsteinbinary_BRP4_windows_x86_64_fermi_v1.3.zip` | GTX 400/500, GT 610/620/630 (fermi exe + `cufft64_80.dll`) |
+| `einsteinbinary_BRP4_windows_x86_64_router_v1.3.zip` | any NVIDIA GPU (router + all three builds + all DLLs) |
+| `einsteinbinary_BRP4_linux_x86_64_modern_v1.3.tar.gz` | GTX 900 → RTX 50 (modern exe, static cuFFT) |
+| `einsteinbinary_BRP4_linux_x86_64_kepler_v1.3.tar.gz` | GTX 600/700, GT 710–740, Titan (kepler exe + `libcufft.so.10`) |
+| `einsteinbinary_BRP4_linux_x86_64_fermi_v1.3.tar.gz` | GTX 400/500, GT 610/620/630 (fermi exe + `libcufft.so.8.0`) |
+| `einsteinbinary_BRP4_linux_x86_64_router_v1.3.tar.gz` | any NVIDIA GPU (router + all three builds + both era cuFFT libs) |
+| `einsteinbinary_BRP4_linux_aarch64_cuda_custom_v1.1.tar.gz` | ARM64 — unchanged from v1.1 (Jetson TX1→Orin, ARM servers, DGX Spark) |
+
+**Known limitation:** current Ter5 `sband_dns` tasks require unpublished
+newer official app options (`--pb_min` etc.) — classic `-t bank` style work
+and standalone runs are what these builds target.
+
+Build with `scripts/legacy/rebuild_all.sh`, package with
+`scripts/legacy/package.sh` and re-run `scripts/legacy/verify_release_*.sh`
+before publishing a new version.
 
 ---
 

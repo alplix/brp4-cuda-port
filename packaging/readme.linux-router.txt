@@ -2,7 +2,7 @@ BRP4 Binary Radio Pulsar Search - CUDA Build for LINUX x86_64
 ====================================================================
 Port: "BRP4 CUDA port by Alperen Yavuz" (the signature is embedded in every
 binary; visible on stderr / results header)
-Version: v1.2 — the "every NVIDIA GPU" release
+Version: v1.3 — the "every NVIDIA GPU" release
 
 What is this?
 -------------

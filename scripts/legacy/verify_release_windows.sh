@@ -1,9 +1,11 @@
 #!/usr/bin/env bash
 # Final release verification on Windows: extracts each published zip fresh
 # and runs a complete synthetic work unit on the local GPU.
+# VERSION/DIST select which archives to verify (defaults: v1.3, /c/Users/Alp/dist).
 set -u
-DIST=/c/Users/Alp/dist
-DATA=/c/Users/Alp/brp4-wintest
+VERSION="${VERSION:-v1.3}"
+DIST="${DIST:-/c/Users/Alp/dist}"
+DATA="${DATA:-/c/Users/Alp/brp4-wintest}"
 pass=0; fail=0
 
 run_one() { # $1=dir $2=exe $3=tag
@@ -26,7 +28,7 @@ run_one() { # $1=dir $2=exe $3=tag
 }
 
 for pkg in modern kepler fermi router; do
-  zipf=$(ls $DIST/einsteinbinary_BRP4_windows_x86_64_*${pkg}_v1.2.zip 2>/dev/null | head -1)
+  zipf=$(ls $DIST/einsteinbinary_BRP4_windows_x86_64_*${pkg}_${VERSION}.zip 2>/dev/null | head -1)
   [ -z "$zipf" ] && { echo "FAIL archive missing for $pkg"; fail=$((fail+1)); continue; }
   d=/c/Users/Alp/vfy_win_$pkg
   rm -rf "$d"; mkdir -p "$d"

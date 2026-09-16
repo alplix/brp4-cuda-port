@@ -1,20 +1,24 @@
 #!/usr/bin/env bash
-# Assembles the v1.2 release packages. Eight x86_64 packages:
+# Assembles the release packages. Eight x86_64 packages:
 #   per-architecture single-exe packages (drop-in, no router):
 #     modern (plain name) | kepler (_kepler) | fermi (_fermi)
 #   plus the all-in-one router package (_router).
+# VERSION selects the archive name suffix (default v1.3) and the dist dir
+# (/root/dist_<version without dots>, e.g. /root/dist_v13); the binaries
+# themselves are always picked up from the latest rebuild_all.sh output.
 set -euo pipefail
 REPO="${REPO:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}"
-DIST=/root/dist_v12
+VERSION="${VERSION:-v1.3}"
+DIST="${DIST:-/root/dist_${VERSION//./}}"
 MODERN_L=/root/build/modern_rebuild/einsteinbinary_BRP4_linux_x86_64_modern
 KEPLER_L=/root/build/era_kepler/einsteinbinary_BRP4_linux_x86_64_kepler
 FERMI_L=/root/build/era_fermi/einsteinbinary_BRP4_linux_x86_64_fermi
-ROUTER_L_SRC="$REPO/src/launcher/brp4_select.c"
+ROUTER_L=/root/router_new/einsteinbinary_BRP4_linux_x86_64_router
 MODERN_W=/root/build/wera_modern/einsteinbinary_BRP4_windows_x86_64_modern.exe
 KEPLER_W=/root/build/wera_kepler/einsteinbinary_BRP4_windows_x86_64_kepler.exe
 FERMI_W=/root/build/wera_fermi/einsteinbinary_BRP4_windows_x86_64_fermi.exe
 ROUTER_W=/root/winrouter/einsteinbinary_BRP4_windows_x86_64_router.exe
-for f in "$MODERN_L" "$KEPLER_L" "$FERMI_L" "$MODERN_W" "$KEPLER_W" "$FERMI_W" "$ROUTER_W"; do
+for f in "$MODERN_L" "$KEPLER_L" "$FERMI_L" "$ROUTER_L" "$MODERN_W" "$KEPLER_W" "$FERMI_W" "$ROUTER_W"; do
   [ -f "$f" ] || { echo "MISSING: $f"; exit 1; }
 done
 rm -rf "$DIST"
@@ -28,7 +32,7 @@ chmod +x "$L/einsteinbinary_BRP4_linux_x86_64_modern"
 cp "$REPO/packaging/app_info.linux-modern.xml" "$L/app_info.xml"
 cp "$REPO/packaging/app_config.xml" "$L/app_config.xml"
 cp "$REPO/packaging/readme.linux-modern.txt" "$L/README.txt"
-(cd "$L" && tar czf "$DIST/einsteinbinary_BRP4_linux_x86_64_modern_v1.2.tar.gz" ./*)
+(cd "$L" && tar czf "$DIST/einsteinbinary_BRP4_linux_x86_64_modern_${VERSION}.tar.gz" ./*)
 
 echo "===== [2/8] linux kepler ====="
 L="$DIST/linux-kepler"; mkdir -p "$L"
@@ -40,7 +44,7 @@ strip "$L/libcufft.so.10" 2>/dev/null || true
 cp "$REPO/packaging/app_info.linux-kepler.xml" "$L/app_info.xml"
 cp "$REPO/packaging/app_config.xml" "$L/app_config.xml"
 cp "$REPO/packaging/readme.linux-kepler.txt" "$L/README.txt"
-(cd "$L" && tar czf "$DIST/einsteinbinary_BRP4_linux_x86_64_kepler_v1.2.tar.gz" ./*)
+(cd "$L" && tar czf "$DIST/einsteinbinary_BRP4_linux_x86_64_kepler_${VERSION}.tar.gz" ./*)
 
 echo "===== [3/8] linux fermi ====="
 L="$DIST/linux-fermi"; mkdir -p "$L"
@@ -52,21 +56,21 @@ strip "$L/libcufft.so.8.0" 2>/dev/null || true
 cp "$REPO/packaging/app_info.linux-fermi.xml" "$L/app_info.xml"
 cp "$REPO/packaging/app_config.xml" "$L/app_config.xml"
 cp "$REPO/packaging/readme.linux-fermi.txt" "$L/README.txt"
-(cd "$L" && tar czf "$DIST/einsteinbinary_BRP4_linux_x86_64_fermi_v1.2.tar.gz" ./*)
+(cd "$L" && tar czf "$DIST/einsteinbinary_BRP4_linux_x86_64_fermi_${VERSION}.tar.gz" ./*)
 
 echo "===== [4/8] linux router (all builds) ====="
 L="$DIST/linux-router"; mkdir -p "$L"
-gcc -O2 -Wall -o "$L/einsteinbinary_BRP4_linux_x86_64_router" "$ROUTER_L_SRC" -ldl
+cp "$ROUTER_L" "$L/einsteinbinary_BRP4_linux_x86_64_router"
 cp "$MODERN_L" "$L/einsteinbinary_BRP4_linux_x86_64_modern"
 cp "$KEPLER_L" "$FERMI_L" "$L/"
 cp /opt/cuda102/lib64/libcufft.so.10 /opt/cuda80/lib64/libcufft.so.8.0 "$L/"
 strip "$L/libcufft.so.10" "$L/libcufft.so.8.0" 2>/dev/null || true
-strip "$L"/einsteinbinary_BRP4_linux_x86_64_kepler "$L"/einsteinbinary_BRP4_linux_x86_64_fermi 2>/dev/null || true
+strip "$L"/einsteinbinary_BRP4_linux_x86_64_{modern,kepler,fermi,router} 2>/dev/null || true
 chmod +x "$L"/einsteinbinary_*
 cp "$REPO/packaging/app_info.linux.xml" "$L/app_info.xml"
 cp "$REPO/packaging/app_config.xml" "$L/app_config.xml"
 cp "$REPO/packaging/readme.linux-router.txt" "$L/README.txt"
-(cd "$L" && tar czf "$DIST/einsteinbinary_BRP4_linux_x86_64_router_v1.2.tar.gz" ./*)
+(cd "$L" && tar czf "$DIST/einsteinbinary_BRP4_linux_x86_64_router_${VERSION}.tar.gz" ./*)
 
 echo "===== [5/8] windows modern (plain name) ====="
 W="$DIST/win-modern"; mkdir -p "$W"
@@ -75,7 +79,7 @@ cp /root/wx/imports/cufft64_11.dll "$W/"
 cp "$REPO/packaging/app_info.windows-modern.xml" "$W/app_info.xml"
 cp "$REPO/packaging/app_config.xml" "$W/app_config.xml"
 cp "$REPO/packaging/readme.windows-modern.txt" "$W/README.txt"
-(cd "$W" && zip -q -r "$DIST/einsteinbinary_BRP4_windows_x86_64_modern_v1.2.zip" ./*)
+(cd "$W" && zip -q -r "$DIST/einsteinbinary_BRP4_windows_x86_64_modern_${VERSION}.zip" ./*)
 
 echo "===== [6/8] windows kepler ====="
 W="$DIST/win-kepler"; mkdir -p "$W"
@@ -84,7 +88,7 @@ cp /root/wx/imports/cufft64_10.dll "$W/"
 cp "$REPO/packaging/app_info.windows-kepler.xml" "$W/app_info.xml"
 cp "$REPO/packaging/app_config.xml" "$W/app_config.xml"
 cp "$REPO/packaging/readme.windows-kepler.txt" "$W/README.txt"
-(cd "$W" && zip -q -r "$DIST/einsteinbinary_BRP4_windows_x86_64_kepler_v1.2.zip" ./*)
+(cd "$W" && zip -q -r "$DIST/einsteinbinary_BRP4_windows_x86_64_kepler_${VERSION}.zip" ./*)
 
 echo "===== [7/8] windows fermi ====="
 W="$DIST/win-fermi"; mkdir -p "$W"
@@ -93,7 +97,7 @@ cp /root/wx/imports/cufft64_80.dll "$W/"
 cp "$REPO/packaging/app_info.windows-fermi.xml" "$W/app_info.xml"
 cp "$REPO/packaging/app_config.xml" "$W/app_config.xml"
 cp "$REPO/packaging/readme.windows-fermi.txt" "$W/README.txt"
-(cd "$W" && zip -q -r "$DIST/einsteinbinary_BRP4_windows_x86_64_fermi_v1.2.zip" ./*)
+(cd "$W" && zip -q -r "$DIST/einsteinbinary_BRP4_windows_x86_64_fermi_${VERSION}.zip" ./*)
 
 echo "===== [8/8] windows router (all builds) ====="
 W="$DIST/win-router"; mkdir -p "$W"
@@ -103,7 +107,7 @@ cp /root/wx/imports/cufft64_11.dll /root/wx/imports/cufft64_10.dll /root/wx/impo
 cp "$REPO/packaging/app_info.windows.xml" "$W/app_info.xml"
 cp "$REPO/packaging/app_config.xml" "$W/app_config.xml"
 cp "$REPO/packaging/readme.windows-router.txt" "$W/README.txt"
-(cd "$W" && zip -q -r "$DIST/einsteinbinary_BRP4_windows_x86_64_router_v1.2.zip" ./*)
+(cd "$W" && zip -q -r "$DIST/einsteinbinary_BRP4_windows_x86_64_router_${VERSION}.zip" ./*)
 
 echo "===== archives ====="
 ls -la "$DIST"/*.tar.gz "$DIST"/*.zip

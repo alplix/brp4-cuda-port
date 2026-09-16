@@ -30,7 +30,7 @@ This project replaces that entire layer with a clean, modern implementation:
 The scientific pipeline (demodulation, harmonic summing, candidate ranking)
 is the battle-tested upstream code — the plumbing around it is brand new.
 
-## What changed in v1.3 (source, not yet released as binaries)
+## What changed in v1.3
 
 - **Correctness fix.** The resampling and padding kernels were launched with
   `nsamples / blocksize` blocks (integer division). Whenever the padded
@@ -62,7 +62,11 @@ is the battle-tested upstream code — the plumbing around it is brand new.
   the router source dropped the last character of the forwarded command line.
   Both fixed; the Windows router now dispatches to the modern/kepler/fermi
   executables correctly (automatic and `BRP4_BUILD=` override). Windows users
-  of v1.2 should use the per-architecture packages until v1.3 archives exist.
+  of v1.2 should use the per-architecture packages, or upgrade to v1.3.
+- **All eight v1.3 packages built and verified end-to-end** — modern, kepler,
+  fermi and both routers, Linux and Windows — by extracting each archive
+  fresh and running a full synthetic work unit on an RTX 5070 Ti; every
+  package reaches the same CPU-reference candidate list.
 - **Leaner repository.** Upstream OpenCL, Metal and CPU-only backends,
   their makefiles, the cuPrintf scaffolding and the old `build.sh` are gone;
   the pipeline source is CUDA-only. Build/test scripts find the checkout from

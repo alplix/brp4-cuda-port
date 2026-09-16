@@ -2,11 +2,11 @@ BRP4 Binary Radio Pulsar Search - MODERN CUDA Build (single exe)
 =================================================================
 Port: "BRP4 CUDA port by Alperen Yavuz" (the signature is embedded in the
 binary; visible on stderr / results header)
-Version: v1.2-modern
+Version: v1.3-modern
 
 What is this?
 -------------
-The MODERN package of the v1.2 BRP4 CUDA port: one plain executable, no
+The MODERN package of the v1.3 BRP4 CUDA port: one plain executable, no
 router. For NVIDIA GPUs from the
 GTX 900 series (Maxwell) up to the RTX 50 series (Blackwell):
 native SASS for sm_50/61/75/86/89/90 plus Blackwell family sections and
@@ -66,7 +66,7 @@ Safe usage: standalone tests or classic "-t bank" style work.
 
 Test status (honest)
 --------------------
-Same binary as the modern build inside the v1.2 full package:
+Same binary as the modern build inside the v1.3 full package:
 RTX 5070 Ti (sm_120) full end-to-end run, exit 0; kill -9 checkpoint
 restore verified on this code path in v1.0; SASS/PTX coverage verified
 with cuobjdump.

@@ -2,7 +2,7 @@ BRP4 Binary Radio Pulsar Search - KEPLER CUDA Build for LINUX x86_64
 ====================================================================
 Port: "BRP4 CUDA port by Alperen Yavuz" (the signature is embedded in the
 binary; visible on stderr / results header)
-Version: v1.2-kepler
+Version: v1.3-kepler
 
 This package is for NVIDIA KEPLER GPUs (compute capability 3.x):
   GTX 650 / 650 Ti / 660 / 670 / 680 / 690, GTX 760 / 770,

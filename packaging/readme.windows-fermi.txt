@@ -2,7 +2,7 @@ BRP4 Binary Radio Pulsar Search - FERMI CUDA Build for WINDOWS x64
 ==================================================================
 Port: "BRP4 CUDA port by Alperen Yavuz" (the signature is embedded in the
 binary; visible on stderr / results header)
-Version: v1.2-fermi
+Version: v1.3-fermi
 
 This package is for NVIDIA FERMI GPUs (compute capability 2.x):
   GTX 400 / 500 series (GTX 460, 470, 480, 560, 570, 580, 590 ...),

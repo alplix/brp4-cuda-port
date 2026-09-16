@@ -5,9 +5,11 @@
 #   - kepler  : compute_35 PTX JIT path
 #   - fermi   : compute_20 PTX JIT path
 #   - router  : auto-routing + the era binary it selects
+# VERSION/DIST select which archives to verify (defaults: v1.3, /root/dist_v13).
 set -uo pipefail
-D=/root/dist_v12
-DATA=/root/synth_kepler
+VERSION="${VERSION:-v1.3}"
+D="${DIST:-/root/dist_${VERSION//./}}"
+DATA="${DATA:-/root/synth_kepler}"
 pass=0; fail=0
 
 run_one() { # $1=dir $2=exe $3=tag
@@ -29,9 +31,9 @@ run_one() { # $1=dir $2=exe $3=tag
   fi
 }
 
-echo "=========== LINUX ARCHIVES ==========="
+echo "=========== LINUX ARCHIVES ($VERSION) ==========="
 for pkg in modern kepler fermi router; do
-  tgz=$(ls $D/einsteinbinary_BRP4_linux_x86_64_*${pkg}_v1.2.tar.gz 2>/dev/null | head -1)
+  tgz=$(ls $D/einsteinbinary_BRP4_linux_x86_64_*${pkg}_${VERSION}.tar.gz 2>/dev/null | head -1)
   [ -z "$tgz" ] && { echo "FAIL archive missing for $pkg"; fail=$((fail+1)); continue; }
   d=/root/vfy_$pkg
   rm -rf "$d"; mkdir -p "$d"
