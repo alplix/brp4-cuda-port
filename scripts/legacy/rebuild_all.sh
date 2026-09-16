@@ -27,7 +27,7 @@ echo "===== [3] windows era builds ====="
 bash "$REPO/scripts/legacy/build_win_era.sh" all
 
 echo "===== [4] routers ====="
-rm -f /root/router_new
+rm -rf /root/router_new
 mkdir -p /root/router_new
 gcc -O2 -Wall -o /root/router_new/einsteinbinary_BRP4_linux_x86_64_router \
   "$REPO/src/launcher/brp4_select.c" -ldl
