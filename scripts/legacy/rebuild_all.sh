@@ -17,7 +17,7 @@ make -f "$SRC/Makefile.linux.cuda" -j8 \
   EINSTEIN_RADIO_SRC="$SRC" \
   EINSTEIN_RADIO_INSTALL=/root/build/brp4-install \
   BOINC_SRC=/root/build/3rdparty/boinc-current_brp_apps \
-  ERP_VERSION=v1.2 > /root/build/modern.log 2>&1 || { tail -20 /root/build/modern.log; exit 1; }
+  > /root/build/modern.log 2>&1 || { tail -20 /root/build/modern.log; exit 1; }
 ls -la einsteinbinary_BRP4_linux_x86_64_modern
 
 echo "===== [2] linux era builds ====="
@@ -31,6 +31,11 @@ rm -rf /root/router_new
 mkdir -p /root/router_new
 gcc -O2 -Wall -o /root/router_new/einsteinbinary_BRP4_linux_x86_64_router \
   "$REPO/src/launcher/brp4_select.c" -ldl
-gcc -O2 -Wall -o /root/winrouter/einsteinbinary_BRP4_windows_x86_64_router.exe \
+# the Windows router must be a PE binary: cross-compile with mingw-w64
+# (the v1.2 packages shipped a Linux ELF under this name by mistake)
+mkdir -p /root/winrouter
+x86_64-w64-mingw32-gcc -O2 -Wall -o /root/winrouter/einsteinbinary_BRP4_windows_x86_64_router.exe \
   "$REPO/src/launcher/brp4_select.c"
+file /root/router_new/einsteinbinary_BRP4_linux_x86_64_router \
+     /root/winrouter/einsteinbinary_BRP4_windows_x86_64_router.exe
 echo "REBUILD_CHAIN_DONE"

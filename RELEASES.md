@@ -26,12 +26,27 @@ blurbs in section **B**.
   read-back (2 sync points per template instead of ~8 blocking calls plus a
   `cuMemAlloc`/`cuMemFree` pair). RTX 5070 Ti, 4M samples × 512 templates:
   2.36 s → 1.90 s wall (Windows native), same on Linux.
+- **Windows router fixed (two bugs):** the v1.2 Windows router package shipped
+  a *Linux ELF* under the name `einsteinbinary_BRP4_windows_x86_64_router.exe`
+  (the rebuild script compiled it with the native gcc), so that package could
+  never have started on Windows — the per-architecture v1.2 Windows packages
+  are unaffected. The router source itself also dropped the last character of
+  the forwarded command line (`_snwprintf` off-by-one), which made the child
+  reject its options with exit code 4. Both are fixed; the router now launches
+  the modern/kepler/fermi exes natively on Windows with identical candidate
+  lists to direct runs, in automatic and `BRP4_BUILD=` override modes.
+- **All six era executables rebuilt and re-verified** from the v1.3 sources
+  (CUDA 12.9 / 10.2 / 8.0 fatbins, Linux + Windows): on an RTX 5070 Ti the
+  kepler and fermi builds (through their compute_35 / compute_20 PTX JIT) match
+  the CPU reference 100/100 like the modern build.
 - **Cleanup:** OpenCL/Metal/CPU backends, non-CUDA makefiles, cuPrintf and
   the upstream `build.sh` removed; scripts no longer depend on a hard-coded
-  checkout path; `test/run_cuda_test.sh` takes the executable as argument and
-  `make_synthetic --amp` generates weak-signal data.
+  checkout path and no longer pin the banner to v1.2; `test/run_cuda_test.sh`
+  takes the executable as argument and `make_synthetic --amp` generates
+  weak-signal data.
 
-Rebuild all era packages with `scripts/legacy/rebuild_all.sh` and re-run
+Rebuild all era packages with `scripts/legacy/rebuild_all.sh`, adapt the
+archive names in `scripts/legacy/package_v12.sh` to v1.3 and re-run
 `scripts/legacy/verify_release_*.sh` before publishing.
 
 ---

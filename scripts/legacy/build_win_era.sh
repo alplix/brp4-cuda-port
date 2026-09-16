@@ -49,7 +49,6 @@ build_era_win() { # $1=flavor $2=cuda_home $3=sass $4=ptx $5=target $6=nvcc_extr
     SASS_ARCHES="$sass" \
     PTX_ARCH="$ptx" \
     NVCC_EXTRA="$extra" \
-    ERP_VERSION=v1.2 \
     BUILD_FLAVOR="-$flavor" \
     TARGET="$target" > "/root/build/wera_${flavor}.log" 2>&1 || {
       echo "WIN BUILD FAILED - tail of wera_${flavor}.log:"; tail -30 "/root/build/wera_${flavor}.log"; exit 1; }

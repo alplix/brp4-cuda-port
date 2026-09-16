@@ -394,10 +394,11 @@ int main(int argc, char **argv) {
     while (*args != L'\0' && *args != L' ' && *args != L'\t') args++;
   }
   while (*args == L' ' || *args == L'\t') args++;
-  size_t cmdLen = lstrlenW(wexePath) + 3 + lstrlenW(args);
+  /* two quotes + one space + terminating NUL */
+  size_t cmdLen = lstrlenW(wexePath) + 3 + lstrlenW(args) + 1;
   wchar_t *cmdLine = (wchar_t *)malloc(cmdLen * sizeof(wchar_t));
   if (cmdLine == NULL) return 1;
-  _snwprintf(cmdLine, cmdLen - 1, L"\"%ls\" %ls", wexePath, args);
+  _snwprintf(cmdLine, cmdLen, L"\"%ls\" %ls", wexePath, args);
   cmdLine[cmdLen - 1] = L'\0';
 
   STARTUPINFOW si;

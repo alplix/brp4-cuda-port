@@ -39,7 +39,6 @@ build_era() { # $1=flavor $2=cuda_home $3=sass $4=ptx $5=target $6=nvcc_extra [$
     NVCC_EXTRA="$extra" \
     CUFFT_SHARED=1 \
     CUDA_LIBDIR=lib64 \
-    ERP_VERSION=v1.2 \
     BUILD_FLAVOR="-$flavor" \
     TARGET="$target" > "/root/build/era_${flavor}.log" 2>&1 || {
       echo "BUILD FAILED - tail of era_${flavor}.log:"; tail -30 "/root/build/era_${flavor}.log"; exit 1; }

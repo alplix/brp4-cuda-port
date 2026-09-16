@@ -57,6 +57,12 @@ is the battle-tested upstream code — the plumbing around it is brand new.
   - measured on an RTX 5070 Ti (4M samples, 512 templates): ~24 % less time
     per template on Windows and Linux; small work units (launch-bound) gain
     ~13 %.
+- **Windows router repaired.** The v1.2 `..._router_v1.2.zip` for Windows
+  contained a Linux binary under the `.exe` name (build-script mistake), and
+  the router source dropped the last character of the forwarded command line.
+  Both fixed; the Windows router now dispatches to the modern/kepler/fermi
+  executables correctly (automatic and `BRP4_BUILD=` override). Windows users
+  of v1.2 should use the per-architecture packages until v1.3 archives exist.
 - **Leaner repository.** Upstream OpenCL, Metal and CPU-only backends,
   their makefiles, the cuPrintf scaffolding and the old `build.sh` are gone;
   the pipeline source is CUDA-only. Build/test scripts find the checkout from
