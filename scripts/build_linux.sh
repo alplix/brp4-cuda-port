@@ -1,12 +1,16 @@
 #!/usr/bin/env bash
-set -e
+# Linux x86_64 modern build inside WSL: syncs the repository's src/ tree into the
+# WSL build tree and runs Makefile.linux.cuda (see scripts/README.md for the layout).
+set -euo pipefail
+REPO="${REPO:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
 SRC=/root/build/brp4-src
-cp "/mnt/c/Users/Alp/Documents/Default Project/brp4-cuda-port/src/Makefile.linux.cuda" "$SRC/"
-mkdir -p "$SRC/compat"
-cp /mnt/c/Users/Alp/Documents/"Default Project"/brp4-cuda-port/src/compat/*.h "$SRC/compat/"
-cp "/mnt/c/Users/Alp/Documents/Default Project/brp4-cuda-port/src/erp_git_version.h" "/mnt/c/Users/Alp/Documents/Default Project/brp4-cuda-port/src/svn_version.h" "$SRC/"
+mkdir -p "$SRC"
+cp -r "$REPO/src/." "$SRC/"
+rm -f "$SRC/erp_git_version.h" "$SRC/svn_version.h"
 cd "$SRC"
 make -f Makefile.linux.cuda clean >/dev/null 2>&1 || true
-make -f Makefile.linux.cuda -j8 2>&1 | tail -25
-echo BUILD_EXIT=$?
-ls -la "$TARGET" 2>/dev/null || ls -la /root/build/brp4-src/einsteinbinary_linux_x86_64_cuda_custom 2>/dev/null || true
+make -f Makefile.linux.cuda -j"$(nproc)" \
+  EINSTEIN_RADIO_SRC="$SRC" \
+  EINSTEIN_RADIO_INSTALL=/root/build/brp4-install \
+  BOINC_SRC=/root/build/3rdparty/boinc-current_brp_apps "$@"
+ls -la "$SRC"/einsteinbinary_BRP4_linux_x86_64_modern

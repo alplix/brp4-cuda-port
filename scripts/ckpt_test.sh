@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
 set -e
-EXE=/root/build/brp4-src/einsteinbinary_linux_x86_64_cuda_custom
+REPO="${REPO:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
+EXE=/root/build/brp4-src/einsteinbinary_BRP4_linux_x86_64_modern
 PROJ=/root/build/proj
 RUN=/root/ckpt_run
 rm -rf $RUN && mkdir -p $RUN && cd $RUN
-cp "/mnt/c/Users/Alp/Documents/Default Project/brp4-cuda-port/test/make_synthetic.c" "$PROJ/test/make_synthetic.c"
+cp "$REPO/test/make_synthetic.c" "$PROJ/test/make_synthetic.c"
 gcc -O2 -Wall -o make_synthetic "$PROJ/test/make_synthetic.c" -lm
 ./make_synthetic --samples 131072 --templates 500000 --outdir .
 ARGS="-i synthetic.binary -t bank.txt -l zaplist.txt -o results.dat -c checkpoint.dat -W -D 0 -z"

@@ -4,7 +4,7 @@
 #     modern (plain name) | kepler (_kepler) | fermi (_fermi)
 #   plus the all-in-one router package (_router).
 set -euo pipefail
-REPO=/mnt/c/Users/Alp/.zcode/workspace/default/brp4-cuda-port
+REPO="${REPO:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}"
 DIST=/root/dist_v12
 MODERN_L=/root/build/modern_rebuild/einsteinbinary_BRP4_linux_x86_64_modern
 KEPLER_L=/root/build/era_kepler/einsteinbinary_BRP4_linux_x86_64_kepler

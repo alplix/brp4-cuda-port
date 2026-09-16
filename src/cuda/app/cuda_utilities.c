@@ -92,11 +92,26 @@ int boinc_get_cuda_device_id(int argc, const char **argv, int *deviceId)
       -> use cudaDriverGetVersion to determine the CUDA runtime version (>=2.2 only)
  */
 
+// FP32 cores per multiprocessor by compute capability (used for the peak-GFLOPS estimate that
+// ranks devices and for the startup banner; an unknown architecture is treated like the newest)
+int cudaCoresPerMultiprocessor(const int major, const int minor) {
+  switch (major) {
+    case 1: return 8;
+    case 2: return (minor == 0) ? 32 : 48;
+    case 3: return 192;
+    case 5: return 128;
+    case 6: return (minor == 0) ? 64 : 128;
+    case 7: return 64;
+    case 8: return (minor == 0) ? 64 : 128;
+    default: return 128;  // Hopper, Blackwell and later
+  }
+}
+
 int findBestFreeDevice(const int minMajorRevision,
                        const int minMinorRevision,
                        const unsigned int minGlobalMemoryBytes,
                        const int needExclusive) {
-  CUdevice cudCurrentDevicePtr = NULL;
+  CUdevice cudCurrentDevicePtr = 0;
   CUresult cuResult = CUDA_SUCCESS;
 
   // find best GPU (with maximum GFLOPS)
@@ -132,7 +147,6 @@ int findBestFreeDevice(const int minMajorRevision,
     int multiProcessorCount = 0;
     int coreCount = 0;
     int clockRate = 0;
-    int flopsPerClockTick = 0;
     char deviceName[256] = {0};
     size_t totalGlobalMem = 0;
     int computeMode = 0;
@@ -179,35 +193,7 @@ int findBestFreeDevice(const int minMajorRevision,
       continue;
     }
 
-    // assign proper number of cores
-    if (compcapMajor == 1) {
-      coreCount = multiProcessorCount * 8;
-      flopsPerClockTick = 3;
-    }
-    else if (compcapMajor == 2 && compcapMinor == 0) {
-      coreCount = multiProcessorCount * 32;
-      flopsPerClockTick = 2;
-    }
-    else if (compcapMajor == 2 && compcapMinor >= 0) {
-      coreCount = multiProcessorCount * 48;
-      flopsPerClockTick = 2;
-    }
-    else if (compcapMajor == 3) {
-      coreCount = multiProcessorCount * 192;
-      flopsPerClockTick = 2;
-    }
-    else if (compcapMajor == 5) {
-      coreCount = multiProcessorCount * 128;
-      flopsPerClockTick = 2;
-    }
-    else if (compcapMajor == 6 || compcapMajor == 7 || compcapMajor == 8) {
-      coreCount = multiProcessorCount * 64;
-      flopsPerClockTick = 2;
-    }
-    else if (compcapMajor >= 9) {
-      coreCount = multiProcessorCount * 128;
-      flopsPerClockTick = 2;
-    }
+    coreCount = multiProcessorCount * cudaCoresPerMultiprocessor(compcapMajor, compcapMinor);
 
     // name
     cuResult = cuDeviceGetName(deviceName, 256, cudCurrentDevicePtr);
@@ -218,7 +204,7 @@ int findBestFreeDevice(const int minMajorRevision,
     }
 
     // compute peak FLOPS
-    cudGFlops = coreCount * clockRate * flopsPerClockTick * 1e-6;
+    cudGFlops = coreCount * clockRate * 2.0f * 1e-6f;
     logMessage(debug, false, "Device #%i (%s): %i CUDA cores / %.2f GFLOPS\n", cudCurrentDevice,
                deviceName, coreCount, cudGFlops);
 

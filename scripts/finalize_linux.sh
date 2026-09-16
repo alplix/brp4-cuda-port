@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 set -e
-EXE=/root/build/brp4-src/einsteinbinary_linux_x86_64_cuda_custom
+EXE=/root/build/brp4-src/einsteinbinary_BRP4_linux_x86_64_modern
 echo "=== stripping ==="
 ls -la $EXE | awk '{print "before:", $5}'
 strip $EXE

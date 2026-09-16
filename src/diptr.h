@@ -21,13 +21,7 @@
 #ifndef DIPTR_H
 #define DIPTR_H
 
-#if defined USE_CUDA
 #include "cuda/app/deviceptr.h"
-#elif defined USE_OPENCL
-#include "opencl/app/deviceptr.h"
-#else
-typedef void* device_ptr_t;  // dummy , not needed in this case
-#endif
 
 // TODO: One day, when we refactor the code in an Object Oriented way, this should become a "smart"
 // like pointer

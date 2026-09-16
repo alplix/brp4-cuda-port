@@ -125,7 +125,7 @@ TARGET ?= einsteinbinary_BRP4_linux_x86_64_modern
 
 # release banner (build scripts delete erp_git_version.h to force regeneration);
 # BUILD_FLAVOR is e.g. "-kepler" / "-fermi" for the legacy era builds
-ERP_VERSION?=v1.2
+ERP_VERSION?=v1.3
 BUILD_FLAVOR?=
 
 # primary role based targets

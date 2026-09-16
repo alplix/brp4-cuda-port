@@ -4,7 +4,7 @@
 #   fermi  : CUDA 8.0,  SASS sm_20/21   + compute_20 PTX  (GTX 400/500, GT 610/620/630)
 # Requires: provision_env.sh, setup_legacy_toolchains.sh (downloads done first).
 set -euo pipefail
-REPO=/mnt/c/Users/Alp/.zcode/workspace/default/brp4-cuda-port
+REPO="${REPO:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}"
 SRC=/root/build/brp4-src
 # full source sync (makefile, all .c/.cpp/.h, cuda/, compat/)
 mkdir -p "$SRC"

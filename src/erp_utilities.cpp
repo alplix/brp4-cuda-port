@@ -122,25 +122,25 @@ void logMessage(const ERP_LOGLEVEL logLevel, const bool showLevel, const char *m
   switch (logLevel) {
     case error:
       output = stderr;
-      snprintf(levelBuffer, LEVEL_BUFFER_SIZE, "[%s][%" FORMAT "][ERROR] ", timeBuffer, pid);
+      snprintf(levelBuffer, LEVEL_BUFFER_SIZE, "[%s][%" FORMAT "][ERROR] ", timeBuffer, (long long)pid);
       break;
     case warn:
       output = stderr;
-      snprintf(levelBuffer, LEVEL_BUFFER_SIZE, "[%s][%" FORMAT "][WARN ] ", timeBuffer, pid);
+      snprintf(levelBuffer, LEVEL_BUFFER_SIZE, "[%s][%" FORMAT "][WARN ] ", timeBuffer, (long long)pid);
       break;
     case info:
       // we want these to be logged by BOINC
       output = stderr;
-      snprintf(levelBuffer, LEVEL_BUFFER_SIZE, "[%s][%" FORMAT "][INFO ] ", timeBuffer, pid);
+      snprintf(levelBuffer, LEVEL_BUFFER_SIZE, "[%s][%" FORMAT "][INFO ] ", timeBuffer, (long long)pid);
       break;
     case debug:
       // we want these to be logged by BOINC
       output = stderr;
-      snprintf(levelBuffer, LEVEL_BUFFER_SIZE, "[%s][%" FORMAT "][DEBUG] ", timeBuffer, pid);
+      snprintf(levelBuffer, LEVEL_BUFFER_SIZE, "[%s][%" FORMAT "][DEBUG] ", timeBuffer, (long long)pid);
       break;
     default:
       output = stderr;
-      snprintf(levelBuffer, LEVEL_BUFFER_SIZE, "[%s][%" FORMAT "][UNKWN] ", timeBuffer, pid);
+      snprintf(levelBuffer, LEVEL_BUFFER_SIZE, "[%s][%" FORMAT "][UNKWN] ", timeBuffer, (long long)pid);
       break;
   }
 

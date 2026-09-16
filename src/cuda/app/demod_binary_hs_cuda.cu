@@ -35,39 +35,56 @@
 #include "cuda_utilities.h"
 #include "demod_binary_hs_cuda.cuh"
 
-// PTX image of dbhs.dev, embedded into the executable at link time
-// (see the dbhs_dev.o rule in Makefile.win64.cuda)
+// fatbin image of the device module, embedded into the executable at link time
+// (see the dbhs_dev.o rule in the CUDA makefiles)
 extern "C" const char _binary_dbhs_fat_start[];
 extern "C" const char _binary_dbhs_fat_end[];
 
 #define HS_BLOCKSIZE 256    // must be an integer power of 2 (because of the following constraint)
 #define HS_LOG_BLOCKSIZE 8  // constraint: HS_LOG_BLOCKSIZE = lrint(log2(HS_BLOCKSIZE))
 
-// device kernels are only visible to the device compiler (PTX generation);
+// device kernels are only visible to the device compiler (fatbin generation);
 // the host build links against the driver API only
 #ifdef __CUDACC__
 #include "harmonic_summing_kernel.cuh"
-#else
-// minimal replacement for the runtime API's dim3 (host build has no cuda_runtime.h)
-struct dim3 {
-  unsigned int x, y, z;
-  dim3(unsigned int x_ = 1, unsigned int y_ = 1, unsigned int z_ = 1) : x(x_), y(y_), z(z_) {}
-};
 #endif
 
-float *powerspectrumHost = 0;
-int stdmem_powerspectrum = 0;  // Flag to distinguish page-locked allocation
+// module global state (set up once per work unit, reused for every template)
 
-// module global variables
+static float *powerspectrumHost = NULL;  // host copy of the power spectrum (sumspec[0])
+static int stdmemFlags = 0;              // bit i set: sumspec[i] is a plain calloc, not pinned
 
-CUdeviceptr h_lutDev;  // look up tables in global device memory
-CUdeviceptr k_lutDev;
-CUdeviceptr thrADev;       // threshold for 1st , 2nd, 4th, 8th, 16th harmonics on device
-CUdeviceptr sumspecDev[5]; /* an array of device memory pointers (NOT an array on the device!) */
+static CUdeviceptr h_lutDev = 0;  // look up tables in global device memory
+static CUdeviceptr k_lutDev = 0;
+static CUdeviceptr thrADev = 0;        // threshold for 1st , 2nd, 4th, 8th, 16th harmonics on device
+static CUdeviceptr sumspecDev[5];      // device sumspec arrays ([0] is the power spectrum itself)
+static CUdeviceptr dirtyDev = 0;       // dirty page flags, 5 * nr_pages int32 on the device
+static int32_t *dirtyHost = NULL;      // pinned staging buffer for the dirty page flags
+static float *thrHost = NULL;          // pinned staging buffer for the five thresholds
+static unsigned int nrPagesTotal = 0;  // 5 * nr_pages
 
-CUmodule cuModuleHS;  // device module and kernel handles
-CUfunction kernelHarmonicSumming;
-CUfunction kernelHarmonicSummingGaps;
+static CUmodule cuModuleHS = NULL;  // device module and kernel handles
+static CUfunction kernelHarmonicSumming;
+static CUfunction kernelHarmonicSummingGaps;
+static CUstream hsStream[2] = {NULL, NULL};  // main and gap kernels may overlap
+
+// allocates page-locked host memory, falling back to calloc (flag bit is set on fallback)
+static float *allocHostFloats(size_t count, int flagBit, const char *what) {
+  float *buffer = NULL;
+  CUresult cuResult = cuMemAllocHost((void **)&buffer, count * sizeof(float));
+  if (cuResult != CUDA_SUCCESS) {
+    logMessage(warn, true,
+               "Couldn't allocate %lu bytes of pinned host memory for %s (error: %i)! Using "
+               "conventional memory...\n",
+               (unsigned long)(count * sizeof(float)), what, cuResult);
+    buffer = (float *)calloc(count, sizeof(float));
+    stdmemFlags |= (1 << flagBit);
+  }
+  else {
+    memset(buffer, 0, count * sizeof(float));
+  }
+  return buffer;
+}
 
 int set_up_harmonic_summing(float **sumspec,
                             int32_t **dirty,
@@ -78,10 +95,9 @@ int set_up_harmonic_summing(float **sumspec,
   int i;
   unsigned int nr_pages;
 
-  // load device modules / kernels (PTX is embedded in the executable,
-  // an external dbhs.dev file takes precedence if present)
-  cuResult = loadPtxModule(&cuModuleHS, "dbhs.dev",
-                           (const char*)_binary_dbhs_fat_start,
+  // load device module (fatbin embedded in the executable, an external dbhs.dev file takes
+  // precedence if present)
+  cuResult = loadPtxModule(&cuModuleHS, "dbhs.dev", _binary_dbhs_fat_start,
                            _binary_dbhs_fat_end - _binary_dbhs_fat_start);
   if (cuResult != CUDA_SUCCESS) {
     logMessage(error, true, "Couldn't load HS CUDA device module (error: %i)!\n", cuResult);
@@ -97,43 +113,80 @@ int set_up_harmonic_summing(float **sumspec,
   cuResult =
       cuModuleGetFunction(&kernelHarmonicSummingGaps, cuModuleHS, "harmonic_summing_kernel_gaps");
   if (cuResult != CUDA_SUCCESS) {
-    logMessage(error, true, "Couldn't get CUDA HS kernel handle (error: %i)!\n", cuResult);
+    logMessage(error, true, "Couldn't get CUDA HSG kernel handle (error: %i)!\n", cuResult);
     return (RADPUL_CUDA_LOOKUP_KERNEL);
   }
 
-  // allocate memory for the harmonic summed spectra
-  // in CUDA version, this includes the 1st harmonics
-  // TODO : sumspec [0] has to be treated differently once the powerspectrum is left on device
-  //        initially and only copied async. later
+  // streams for the two (independent) summing kernels; created with the default flags so they
+  // still synchronize with the preceding default-stream work (resampling, FFT, power spectrum)
+  for (i = 0; i < 2; i++) {
+    cuResult = cuStreamCreate(&hsStream[i], 0);
+    if (cuResult != CUDA_SUCCESS) {
+      logMessage(error, true, "Couldn't create CUDA HS stream (error: %i)!\n", cuResult);
+      return (RADPUL_CUDA_KERNEL_PREPARE);
+    }
+  }
+
+  // host memory for the harmonic summed spectra (pinned: they receive per-template device->host
+  // copies). In the CUDA version this includes the 1st harmonic = the power spectrum itself.
+  sumspec[0] = powerspectrumHost = allocHostFloats(harmonic_idx_hi, 0, "power spectrum");
+  if (powerspectrumHost == NULL) {
+    logMessage(error, true, "Couldn't allocate %lu bytes of memory for power spectrum!\n",
+               (unsigned long)(harmonic_idx_hi * sizeof(float)));
+    return (RADPUL_CUDA_MEM_ALLOC_HOST);
+  }
   for (i = 1; i < 5; i++) {
-    sumspec[i] = (float *)calloc(fundamental_idx_hi, sizeof(float));
+    sumspec[i] = allocHostFloats(fundamental_idx_hi, i, "sumspec");
     if (sumspec[i] == NULL) {
-      logMessage(error, true, "Couldn't allocate %d bytes of memory for sumspec at bottom level.\n",
-                 fundamental_idx_hi * sizeof(float));
+      logMessage(error, true, "Couldn't allocate %lu bytes of memory for sumspec at bottom level.\n",
+                 (unsigned long)(fundamental_idx_hi * sizeof(float)));
       return (RADPUL_EMEM);
     }
   }
 
+  // device memory for the summed spectra (sumspecDev[0] is set per template to the power spectrum)
   sumspecDev[0] = 0;
   for (i = 1; i < 5; i++) {
     cuResult = cuMemAlloc(&(sumspecDev[i]), sizeof(float) * fundamental_idx_hi);
     if (cuResult != CUDA_SUCCESS) {
-      logMessage(error, true, "Couldn't allocate %d bytes of CUDA HS summing memory (error: %i)!\n",
-                 sizeof(float) * fundamental_idx_hi, cuResult);
+      logMessage(error, true, "Couldn't allocate %lu bytes of CUDA HS summing memory (error: %i)!\n",
+                 (unsigned long)(sizeof(float) * fundamental_idx_hi), cuResult);
       return (RADPUL_CUDA_MEM_ALLOC_DEVICE);
     }
   }
 
+  // dirty page flags: host arrays handed to the caller, one device array and a pinned staging
+  // buffer covering all five harmonics
   nr_pages = (fundamental_idx_hi >> LOG_PS_PAGE_SIZE) + 1;
   *nr_pages_ptr = nr_pages;
+  nrPagesTotal = nr_pages * 5;
   for (i = 0; i < 5; i++) {
     dirty[i] = (int32_t *)calloc(nr_pages, sizeof(int32_t));
     if (dirty[i] == NULL) {
       logMessage(error, true,
-                 "Couldn't allocate %d bytes of memory for sumspec page flags at bottom level.\n",
-                 fundamental_idx_hi * sizeof(float));
+                 "Couldn't allocate %lu bytes of memory for sumspec page flags at bottom level.\n",
+                 (unsigned long)(nr_pages * sizeof(int32_t)));
       return (RADPUL_EMEM);
     }
+  }
+  cuResult = cuMemAlloc(&dirtyDev, sizeof(int32_t) * nrPagesTotal);
+  if (cuResult != CUDA_SUCCESS) {
+    logMessage(error, true, "Couldn't allocate %lu bytes of CUDA HS page flag memory (error: %i)!\n",
+               (unsigned long)(sizeof(int32_t) * nrPagesTotal), cuResult);
+    return (RADPUL_CUDA_MEM_ALLOC_DEVICE);
+  }
+  cuResult = cuMemAllocHost((void **)&dirtyHost, sizeof(int32_t) * nrPagesTotal);
+  if (cuResult != CUDA_SUCCESS) {
+    logMessage(error, true,
+               "Couldn't allocate %lu bytes of pinned host memory for HS page flags (error: %i)!\n",
+               (unsigned long)(sizeof(int32_t) * nrPagesTotal), cuResult);
+    return (RADPUL_CUDA_MEM_ALLOC_HOST);
+  }
+  cuResult = cuMemAllocHost((void **)&thrHost, sizeof(float) * 5);
+  if (cuResult != CUDA_SUCCESS) {
+    logMessage(error, true, "Couldn't allocate pinned host memory for HS thresholds (error: %i)!\n",
+               cuResult);
+    return (RADPUL_CUDA_MEM_ALLOC_HOST);
   }
 
   // look up device-side symbol handles (replacing legacy texture references)
@@ -170,63 +223,62 @@ int set_up_harmonic_summing(float **sumspec,
     return (RADPUL_CUDA_MEM_COPY_HOST_DEVICE);
   }
 
-  // allocate host memory for power spectrum
-  cuResult = cuMemAllocHost((void **)&powerspectrumHost, harmonic_idx_hi * sizeof(float));
-  if (cuResult != CUDA_SUCCESS) {
-    logMessage(warn, true,
-               "Couldn't allocate %d bytes of pinned host memory for power spectrum (error: %i)! "
-               "Trying fallback...\n",
-               harmonic_idx_hi * sizeof(float), cuResult);
-    powerspectrumHost = (float *)calloc(harmonic_idx_hi, sizeof(float));
-    if (powerspectrumHost == NULL) {
-      logMessage(error, true, "Couldn't allocate %d bytes of memory for power spectrum!\n",
-                 harmonic_idx_hi * sizeof(float));
-      return (RADPUL_CUDA_MEM_ALLOC_HOST);
-    }
-    // set flag to indicate conventional memory allocation
-    stdmem_powerspectrum = 1;
-  }
-  logMessage(debug, true, "Allocated host memory for power spectrum: %i bytes\n",
-             sizeof(float) * harmonic_idx_hi);
+  logMessage(debug, true, "Harmonic summing set up (%u pages per harmonic)\n", nr_pages);
 
   return 0;
 }
 
 int tear_down_harmonic_summing(float **sumspec, int32_t **dirty) {
   CUresult cuResult = CUDA_SUCCESS;
+  int result = 0;
   int i;
 
-  // clean up. (0th element is powerspectrum, freed separately)
-  for (i = 1; i < 5; i++) {
-    free(sumspec[i]);
+  // host spectra (sumspec[0] is the power spectrum buffer)
+  for (i = 0; i < 5; i++) {
+    if (stdmemFlags & (1 << i)) {
+      free(sumspec[i]);
+    }
+    else {
+      cuResult = cuMemFreeHost(sumspec[i]);
+      if (cuResult != CUDA_SUCCESS) {
+        logMessage(error, true, "Error deallocating CUDA pinned host HS memory (error: %i)\n",
+                   cuResult);
+        result = RADPUL_CUDA_MEM_FREE_HOST;
+      }
+    }
+    sumspec[i] = NULL;
   }
+  powerspectrumHost = NULL;
 
   for (i = 0; i < 5; i++) {
     free(dirty[i]);
   }
+  cuResult = cuMemFreeHost(dirtyHost);
+  if (cuResult != CUDA_SUCCESS) {
+    logMessage(error, true, "Error deallocating CUDA pinned host HS page flags (error: %i)\n",
+               cuResult);
+    result = RADPUL_CUDA_MEM_FREE_HOST;
+  }
+  cuMemFreeHost(thrHost);
 
   for (i = 1; i < 5; i++) {
     cuResult = cuMemFree(sumspecDev[i]);
     if (cuResult != CUDA_SUCCESS) {
       logMessage(error, true, "Error freeing CUDA HS device memory (error: %d)\n", cuResult);
-      return (RADPUL_CUDA_MEM_FREE_DEVICE);
+      result = RADPUL_CUDA_MEM_FREE_DEVICE;
     }
   }
-
-  if (stdmem_powerspectrum) {
-    free(powerspectrumHost);
-  }
-  else {
-    cuResult = cuMemFreeHost(powerspectrumHost);
-    if (cuResult != CUDA_SUCCESS) {
-      logMessage(error, true,
-                 "Error deallocating CUDA pinned host powerspectrum memory (error: %i)\n",
-                 cuResult);
-      return (RADPUL_CUDA_MEM_FREE_HOST);
-    }
+  cuResult = cuMemFree(dirtyDev);
+  if (cuResult != CUDA_SUCCESS) {
+    logMessage(error, true, "Error freeing CUDA HS page flag device memory (error: %d)\n", cuResult);
+    result = RADPUL_CUDA_MEM_FREE_DEVICE;
   }
 
-  return 0;
+  for (i = 0; i < 2; i++) {
+    cuStreamDestroy(hsStream[i]);
+  }
+
+  return result;
 }
 
 int run_harmonic_summing(float **sumspec,
@@ -237,65 +289,37 @@ int run_harmonic_summing(float **sumspec,
                          unsigned int fundamental_idx_hi,
                          unsigned int harmonic_idx_hi,
                          float *thresholds) {
-  unsigned int l1, l2, i, j, k;
-
+  unsigned int l2, i, j, k;
   CUresult cuResult = CUDA_SUCCESS;
-  dim3 dg1, dg2;
-  dim3 db1, db2;
-  int nr_pages_total = nr_pages * 5;
-
-  float *powerspectrum = powerspectrumHost;  // global variable
-
-  /* borders for main kernel computation in a 16 index grid */
-  /* for simplicity we always start at the left border of the spectrum,
-    the kernel itself will take care of the window_2 offset */
-  l1 = 0;
-  /* the number of main kernel blocks of width 16 that is needed to fully cover
-     the spectrum up to index harmonic_idx_hi -1 (inclusive) */
-  l2 = ((harmonic_idx_hi - 1 + 8) >> 4) + 1;
 
   CUdeviceptr powerspectrumDev = powerspectrum_dip.device_ptr;
-  ;
-  CUdeviceptr dirtyDev;
-  CUstream stream[2];
-  int32_t *dirtyTmp;
-  cuStreamCreate(&stream[0], 0);
-  cuStreamCreate(&stream[1], 0);
 
-  // add powerspectrum as first spectra element
-
-  // TODO : sumspec [0] has to be treated differently once the powerspectrum is left on device
-  //        initially and only copied (possibly async.) later
-
-  sumspec[0] = powerspectrum;
-
-  /* allocate sumspec arrays on device */
+  // the power spectrum acts as first (1st harmonic) spectrum
+  sumspec[0] = powerspectrumHost;
   sumspecDev[0] = powerspectrumDev;
+
+  // the kernels only write sumspec cells above threshold, so the device arrays must start out
+  // zeroed for every template (otherwise stale values of earlier templates would survive inside
+  // pages that get marked dirty now)
   for (i = 1; i < 5; i++) {
-    cuResult = cuMemsetD8(sumspecDev[i], 0, sizeof(float) * fundamental_idx_hi);
+    cuResult = cuMemsetD32Async(sumspecDev[i], 0, fundamental_idx_hi, NULL);
     if (cuResult != CUDA_SUCCESS) {
-      logMessage(error, true, "Couldn't erase %d bytes of CUDA HS summing memory (error: %i)!\n",
-                 sizeof(float) * fundamental_idx_hi, cuResult);
+      logMessage(error, true, "Couldn't erase %lu bytes of CUDA HS summing memory (error: %i)!\n",
+                 (unsigned long)(sizeof(float) * fundamental_idx_hi), cuResult);
       return (RADPUL_CUDA_MEM_COPY_HOST_DEVICE);
     }
   }
-
-  cuResult = cuMemAlloc(&dirtyDev, sizeof(int32_t) * nr_pages_total);
+  cuResult = cuMemsetD32Async(dirtyDev, 0, nrPagesTotal, NULL);
   if (cuResult != CUDA_SUCCESS) {
-    logMessage(error, true, "Couldn't allocate %d bytes of CUDA HS summing memory (error: %i)!\n",
-               sizeof(int32_t) * nr_pages_total, cuResult);
-    return (RADPUL_CUDA_MEM_ALLOC_DEVICE);
-  }
-  cuResult = cuMemsetD8(dirtyDev, 0, sizeof(int32_t) * nr_pages_total);
-  if (cuResult != CUDA_SUCCESS) {
-    logMessage(error, true, "Couldn't erase %d bytes of CUDA HS summing memory (error: %i)!\n",
-               sizeof(int32_t) * nr_pages_total, cuResult);
+    logMessage(error, true, "Couldn't erase %lu bytes of CUDA HS page flag memory (error: %i)!\n",
+               (unsigned long)(sizeof(int32_t) * nrPagesTotal), cuResult);
     return (RADPUL_CUDA_MEM_COPY_HOST_DEVICE);
   }
 
-  /* copy thresholds to device */
-
-  cuResult = cuMemcpyHtoD(thrADev, thresholds, sizeof(float) * 5);
+  // copy thresholds to device (asynchronously from pinned staging memory; the previous template's
+  // transfer has long completed since every template ends with a full synchronization)
+  memcpy(thrHost, thresholds, sizeof(float) * 5);
+  cuResult = cuMemcpyHtoDAsync(thrADev, thrHost, sizeof(float) * 5, NULL);
   if (cuResult != CUDA_SUCCESS) {
     logMessage(error, true,
                "Error during CUDA host->device HS thresholds data transfer (error: %i)\n",
@@ -303,174 +327,110 @@ int run_harmonic_summing(float **sumspec,
     return (RADPUL_CUDA_MEM_COPY_HOST_DEVICE);
   }
 
-  /* Execute kernel to perform harmonic summing (with some gaps where sumspec target values would
-   * overlap */
-
-  /* somehow this seems to work better than y=16 , x = (l2-l1)/16 */
-  /* anyway we have to use a 2 dim because index in each dim is limited */
-  dg1.y = (l2 - l1) / HS_BLOCKSIZE;
-
-  /* add one block if not perfectly aligned */
-  if ((l2 - l1) % HS_BLOCKSIZE != 0) {
-    dg1.y++;
-  }
-  dg1.x = 16;  // rather arbitrarily, there is no algorithmic reason for the value 16
-  dg1.z = 1;
-
-  db1.x = HS_BLOCKSIZE;
-  db1.y = 1;
-  db1.z = 1;
-
-  logMessage(debug, true,
-             "Executing harmonic summing CUDA kernel (%u threads each in %u blocks)...\n", db1.x,
-             dg1.x * dg1.y * dg1.z);
-
-  /* the lowest index i for which sumspec[h][i/(1<<h)+0.5] is computed by the kernels*/
-
-  /* first kernel in first stream*/
-  /* TODO: check effect on performance of having concurrent streams */
-
-  // prepare parameters (shared by both kernels, identical signature)
-  void *kernelArgs[] = {&sumspecDev[1], &sumspecDev[2], &sumspecDev[3],
-                        &sumspecDev[4], &dirtyDev,      &powerspectrumDev,
+  // kernel arguments (both kernels share the same signature)
+  void *kernelArgs[] = {&sumspecDev[1], &sumspecDev[2],      &sumspecDev[3],
+                        &sumspecDev[4], &dirtyDev,           &powerspectrumDev,
                         &window_2,      &fundamental_idx_hi, &harmonic_idx_hi};
 
-  // launch kernel grid
-  cuResult = cuLaunchKernel(kernelHarmonicSumming, dg1.x, dg1.y, dg1.z, db1.x, db1.y, db1.z, 0,
-                            stream[0], kernelArgs, NULL);
+  /* Main kernel: sub-blocks of 16 threads, the number of 16-index segments needed to cover the
+   * spectrum up to harmonic_idx_hi - 1 (inclusive); the kernel handles the window_2 offset and
+   * the left border itself. A 2D grid (x = 16, y = rest) keeps each dimension within limits. */
+  l2 = ((harmonic_idx_hi - 1 + 8) >> 4) + 1;
+  unsigned int gridY1 = (l2 + HS_BLOCKSIZE - 1) / HS_BLOCKSIZE;
+
+  logMessage(debug, true,
+             "Executing harmonic summing CUDA kernel (%u threads each in %u blocks)...\n",
+             HS_BLOCKSIZE, 16 * gridY1);
+
+  cuResult = cuLaunchKernel(kernelHarmonicSumming, 16, gridY1, 1, HS_BLOCKSIZE, 1, 1, 0,
+                            hsStream[0], kernelArgs, NULL);
   if (cuResult != CUDA_SUCCESS) {
     logMessage(error, true, "Error launching CUDA HS kernel (error: %d)\n", cuResult);
     return (RADPUL_CUDA_KERNEL_INVOKE);
   }
 
-  /* execute second kernel, this time to fill the gaps */
-
-  l1 = 0;
-  /* the number of gap kernel blocks (where each block covers 2 segments of length 8 indices)
-  l2= (((harmonic_idx_hi -1 + 12) >> 4 ) +1) /*>> 1*/
-  ; /* TODO CHECK!!!!!*/
-
-  dg2.y = (l2 - l1) / HS_BLOCKSIZE;
-  /* add one if not perfectly aligned to HS_BLOCKSIZE */
-  if ((l2 - l1) % HS_BLOCKSIZE != 0) {
-    dg2.y++;
-  }
-  dg2.x = 16; /* again, 16 is rather arbitrary */
-  dg2.z = 1;
-
-  db2.x = HS_BLOCKSIZE /
-          2; /* sic! it is essential that the blocksize is half that of the first kernel */
-  db2.y = 1;
-  db2.z = 1;
+  /* Gap kernel: fills the sumspec slots the main kernel leaves out at the sub-block borders.
+   * Its block size must be half that of the main kernel. */
+  l2 = ((harmonic_idx_hi - 1 + 12) >> 4) + 1;
+  unsigned int gridY2 = (l2 + HS_BLOCKSIZE - 1) / HS_BLOCKSIZE;
 
   logMessage(debug, true,
              "Executing harmonic summing gaps CUDA kernel (%u threads each in %u blocks)...\n",
-             db2.x, dg2.x * dg2.y * dg2.z);
+             HS_BLOCKSIZE / 2, 16 * gridY2);
 
-  // launch kernel grid
-  cuResult = cuLaunchKernel(kernelHarmonicSummingGaps, dg2.x, dg2.y, dg2.z, db2.x, db2.y, db2.z, 0,
-                            stream[1], kernelArgs, NULL);
+  cuResult = cuLaunchKernel(kernelHarmonicSummingGaps, 16, gridY2, 1, HS_BLOCKSIZE / 2, 1, 1, 0,
+                            hsStream[1], kernelArgs, NULL);
   if (cuResult != CUDA_SUCCESS) {
     logMessage(error, true, "Error launching CUDA HSG kernel (error: %d)\n", cuResult);
     return (RADPUL_CUDA_KERNEL_INVOKE);
   }
 
-  // wait until all device processing finished (errors should indicate earlier launch failures)
-  cuResult = cuCtxSynchronize();
+  // queue the dirty page flag read-back behind the kernels (the default stream waits for both
+  // blocking streams) and wait for everything issued so far. This is the first of only two
+  // host<->device synchronization points per template; errors surfacing here indicate failures
+  // of any earlier asynchronous launch or transfer.
+  cuResult = cuMemcpyDtoHAsync(dirtyHost, dirtyDev, sizeof(int32_t) * nrPagesTotal, NULL);
+  if (cuResult == CUDA_SUCCESS) {
+    cuResult = cuCtxSynchronize();
+  }
   if (cuResult != CUDA_SUCCESS) {
-    logMessage(error, true,
-               "Error during CUDA HS/HSG kernel launch and/or device synchronization (error: %d)\n",
+    logMessage(error, true, "Error during CUDA kernel execution / dirty page read-back (error: %d)\n",
                cuResult);
     return (RADPUL_CUDA_KERNEL_INVOKE);
   }
 
-  // destroy both streams
-  cuStreamDestroy(stream[0]);
-  cuStreamDestroy(stream[1]);
-
-  // copy back dirty page flags to memory
-
-  dirtyTmp = (int32_t *)malloc(nr_pages_total * sizeof(int32_t));
-  if (dirtyTmp == NULL) {
-    logMessage(error, true, "Couldn't allocate %d bytes of memory for temp mem (HS).\n",
-               nr_pages_total * sizeof(int32_t));
-    return (RADPUL_EMEM);
-  };
-  cuResult = cuMemcpyDtoH(dirtyTmp, dirtyDev, sizeof(int32_t) * nr_pages_total);
-  if (cuResult != CUDA_SUCCESS) {
-    logMessage(error, true, "Error during CUDA device->host HS data transfer (dirty) (error: %d)\n",
-               cuResult);
-    return (RADPUL_CUDA_MEM_COPY_DEVICE_HOST);
-  }
-
-  int dirty_idx_min[5] = {0, 0, 0, 0, 0};
-  int dirty_idx_max[5] = {0, 0, 0, 0, 0};
-  int d, d_min, d_max;
+  // distribute the flags to the per-harmonic host arrays and find the dirty page range
+  int dirty_idx_min[5];
+  int dirty_idx_max[5];
 
   k = 0;
   for (i = 0; i < 5; i++) {
-    d_min = nr_pages;
-    d_max = -1;
-
-    // find the first dirty page
+    int d_min = -1;
+    int d_max = -1;
     for (j = 0; j < nr_pages; j++) {
-      d = dirty[i][j] = dirtyTmp[k++];
+      int32_t d = dirtyHost[k++];
+      dirty[i][j] = d;
       if (d != 0) {
-        d_min = j;
-        d_max = j;
-        j++;
-        break;
-      }
-    }
-    // go thru the rest and record the last dirty page we find
-
-    for (; j < nr_pages; j++) {
-      d = dirty[i][j] = dirtyTmp[k++];
-      if (d != 0) {
+        if (d_min < 0) d_min = j;
         d_max = j;
       }
     }
-
     dirty_idx_min[i] = d_min;
     dirty_idx_max[i] = d_max;
-  }
-
-  free(dirtyTmp);
-  cuResult = cuMemFree(dirtyDev);
-  if (cuResult != CUDA_SUCCESS) {
-    logMessage(error, true, "Error freeing CUDA HS device memory (error: %d)\n", cuResult);
-    return (RADPUL_CUDA_MEM_FREE_DEVICE);
   }
 
   /* copy back the results from the CUDA kernel.
    * make sure to copy only those cells from sumspec
    * (including the "1st harmonics" powerspectrum itself)
-   * that have a chance to include a candidate that makes it to the toplist
-   *
-   * TODO : look at possibility to copy only a subarray
-   */
-
+   * that have a chance to include a candidate that makes it to the toplist */
   for (i = 0; i < 5; i++) {
-    /* no need to copy anything if there is no potential candidate at all */
-    if (dirty_idx_max[i] != -1) {
-      size_t seg_offset = dirty_idx_min[i] << LOG_PS_PAGE_SIZE;
-      size_t seg_length = (dirty_idx_max[i] - dirty_idx_min[i] + 1) << LOG_PS_PAGE_SIZE;
-      // clip the segment to be copied at the max length of the array
-      size_t seg_length_limit = fundamental_idx_hi - seg_offset;
-      if (seg_length > seg_length_limit) {
-        seg_length = seg_length_limit;
-      }
+    // no need to copy anything if there is no potential candidate at all
+    if (dirty_idx_max[i] < 0) continue;
 
-      // do some pointer arithmetic to get the the right subsegment of memory to copy
-      cuResult = cuMemcpyDtoH(sumspec[i] + seg_offset,
-                              (CUdeviceptr)(((float *)sumspecDev[i]) + seg_offset),
-                              sizeof(float) * seg_length);
-      if (cuResult != CUDA_SUCCESS) {
-        logMessage(error, true, "Error during CUDA device->host HS data transfer (error: %d)\n",
-                   cuResult);
-        return (RADPUL_CUDA_MEM_COPY_DEVICE_HOST);
-      }
+    size_t seg_offset = (size_t)dirty_idx_min[i] << LOG_PS_PAGE_SIZE;
+    size_t seg_length = (size_t)(dirty_idx_max[i] - dirty_idx_min[i] + 1) << LOG_PS_PAGE_SIZE;
+    // clip the segment to be copied at the max length of the array
+    size_t seg_length_limit = fundamental_idx_hi - seg_offset;
+    if (seg_length > seg_length_limit) {
+      seg_length = seg_length_limit;
     }
+
+    // asynchronous into pinned memory (degrades to a synchronous copy for a pageable fallback)
+    cuResult = cuMemcpyDtoHAsync(sumspec[i] + seg_offset, sumspecDev[i] + seg_offset * sizeof(float),
+                                 sizeof(float) * seg_length, NULL);
+    if (cuResult != CUDA_SUCCESS) {
+      logMessage(error, true, "Error during CUDA device->host HS data transfer (error: %d)\n",
+                 cuResult);
+      return (RADPUL_CUDA_MEM_COPY_DEVICE_HOST);
+    }
+  }
+
+  // second synchronization point: the host may read the spectra once this returns
+  cuResult = cuCtxSynchronize();
+  if (cuResult != CUDA_SUCCESS) {
+    logMessage(error, true, "Error waiting for CUDA device->host HS data transfers (error: %d)\n",
+               cuResult);
+    return (RADPUL_CUDA_MEM_COPY_DEVICE_HOST);
   }
 
   return 0;

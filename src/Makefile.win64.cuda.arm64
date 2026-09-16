@@ -95,7 +95,7 @@ release: $(TARGET)
 $(EINSTEIN_RADIO_SRC)/erp_git_version.h:
 	@echo "#ifndef ERP_GIT_VERSION_H" > $@
 	@echo "#define ERP_GIT_VERSION_H" >> $@
-	@echo "#define ERP_GIT_VERSION \"v1.0 | BRP4 CUDA port by Alperen Yavuz\"" >> $@
+	@echo "#define ERP_GIT_VERSION \"v1.3 | BRP4 CUDA port by Alperen Yavuz\"" >> $@
 	@echo "" >> $@
 	@echo "#endif" >> $@
 

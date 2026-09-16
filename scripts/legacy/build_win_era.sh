@@ -8,7 +8,7 @@
 #           setup_legacy_toolchains.sh, and the extracted era cufft DLLs
 #           (extract_cufft_windows.sh).
 set -euo pipefail
-REPO=/mnt/c/Users/Alp/.zcode/workspace/default/brp4-cuda-port
+REPO="${REPO:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}"
 SRC=/root/build/brp4-src
 IMPORTS=/root/wx/imports
 # full source sync (makefile, all .c/.cpp/.h, cuda/, compat/)

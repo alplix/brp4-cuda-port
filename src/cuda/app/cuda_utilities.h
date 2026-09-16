@@ -32,6 +32,8 @@
 extern "C" {
 #endif
 
+extern int cudaCoresPerMultiprocessor(const int major, const int minor);
+
 extern int findBestFreeDevice(const int minMajorRevision,
                               const int minMinorRevision,
                               const unsigned int minGlobalMemoryBytes,

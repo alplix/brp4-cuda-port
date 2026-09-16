@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 set -e
-REPO="/mnt/c/Users/Alp/Documents/Default Project/brp4-cuda-port"
+REPO="${REPO:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
 PROJ=/root/build/proj
 mkdir -p "$PROJ/test"
 ln -sfn /root/build/brp4-src "$PROJ/src"
 cp "$REPO/test/make_synthetic.c" "$PROJ/test/"
-EXE=/root/build/brp4-src/einsteinbinary_linux_x86_64_cuda_custom
+EXE=/root/build/brp4-src/einsteinbinary_BRP4_linux_x86_64_modern
 RUN=/root/synth_run
 mkdir -p $RUN && cd $RUN
 rm -f results.dat results.dat.tmp checkpoint.dat boinc_finish_called stderr.old

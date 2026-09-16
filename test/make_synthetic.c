@@ -10,8 +10,12 @@
  *   bank.txt         : three binary templates ("P_b tau Psi0" per line)
  *   zaplist.txt      : empty RFI list
  *
- * Usage: make_synthetic [--samples N] [--freq HZ] [--scale S]
+ * Usage: make_synthetic [--samples N] [--freq HZ] [--scale S] [--amp A]
  *                        [--templates N] [--outdir DIR]
+ *
+ * --amp sets the sinusoid amplitude relative to the +-0.5 uniform noise
+ * (default 20 = a blatant line; 0.02 gives a weak signal that exercises the
+ * threshold and candidate bookkeeping the way real data does).
  *
  * The sample values are chosen so that the injected spectral line lands well
  * inside the searched frequency range (bin = freq * Tobs < f0 * Tobs).
@@ -33,6 +37,7 @@ int main(int argc, char **argv) {
   unsigned int n_samples = 131072; /* 2^17 */
   double freq_hz = 100.0;
   double scale = 64.0;
+  double amp = 20.0; /* sinusoid amplitude in units of the +-0.5 noise */
   double tsample_us = 64.0; /* micro seconds */
   const char *outdir = ".";
   unsigned int n_templates = 3;
@@ -49,6 +54,9 @@ int main(int argc, char **argv) {
     }
     else if (!strcmp(argv[i], "--scale") && i + 1 < argc) {
       scale = atof(argv[++i]);
+    }
+    else if (!strcmp(argv[i], "--amp") && i + 1 < argc) {
+      amp = atof(argv[++i]);
     }
     else if (!strcmp(argv[i], "--outdir") && i + 1 < argc) {
       outdir = argv[++i];
@@ -107,7 +115,7 @@ int main(int argc, char **argv) {
   for (unsigned int n = 0; n < n_samples; n++) {
     double signal = sin(2.0 * M_PI * freq_hz * (double)n * dt);
     double noise = ((double)rand() / (double)RAND_MAX) - 0.5; /* +-0.5 */
-    double value = 20.0 * signal + noise;
+    double value = amp * signal + noise;
     long q = lround(value * scale);
     if (q > 127) q = 127;
     if (q < -127) q = -127;

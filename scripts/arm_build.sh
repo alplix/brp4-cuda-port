@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 set -e
-REPO="/mnt/c/Users/Alp/Documents/Default Project/brp4-cuda-port"
+REPO="${REPO:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
 BSRC=/root/build/brp4-src-arm64
 rm -rf "$BSRC" && mkdir -p "$BSRC"
 cp -a "$REPO/src/." "$BSRC/"

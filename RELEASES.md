@@ -6,6 +6,36 @@ blurbs in section **B**.
 
 ---
 
+## v1.3 — correctness fix + faster template loop (draft, binaries not yet built)
+
+**BRP4 CUDA port v1.3 — results now match the upstream CPU app; ~24 % faster per template**
+
+- **Fix:** the resampling/padding kernels were launched with truncated grids
+  (`nsamples / blocksize`). When the padded length is not a multiple of 384 and
+  512 the tail of the resampled time series was never written and kept the
+  previous template's FFT output, producing bogus low-frequency candidates.
+  Grids are rounded up and bounds-checked now; the sum reduction copes with
+  partial blocks. Verified against the upstream CPU application on synthetic
+  strong- and weak-signal data: 100/100 candidates agree (frequency, template,
+  harmonics), powers differ at the 1e-6 level only. Windows and Linux builds
+  produce bit-identical candidate lists on the same input.
+- **Speed:** block-parallel modulated-length search (was a single-thread walk
+  of up to tens of thousands of dependent loads per template), no
+  device→host round trips inside the resampling stage, harmonic summing
+  buffers/streams allocated once with asynchronous threshold upload and
+  read-back (2 sync points per template instead of ~8 blocking calls plus a
+  `cuMemAlloc`/`cuMemFree` pair). RTX 5070 Ti, 4M samples × 512 templates:
+  2.36 s → 1.90 s wall (Windows native), same on Linux.
+- **Cleanup:** OpenCL/Metal/CPU backends, non-CUDA makefiles, cuPrintf and
+  the upstream `build.sh` removed; scripts no longer depend on a hard-coded
+  checkout path; `test/run_cuda_test.sh` takes the executable as argument and
+  `make_synthetic --amp` generates weak-signal data.
+
+Rebuild all era packages with `scripts/legacy/rebuild_all.sh` and re-run
+`scripts/legacy/verify_release_*.sh` before publishing.
+
+---
+
 ## v1.2 — "every NVIDIA GPU" release (Kepler + Fermi era builds, router)
 
 **BRP4 CUDA port v1.2 — now for EVERY NVIDIA GPU: Fermi (2010) → Blackwell**

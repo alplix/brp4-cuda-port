@@ -63,27 +63,10 @@
 
 #include "hs_common.h"
 
-#ifdef USE_CPU_RESAMP
-#include "demod_binary_resamp_cpu.h"
-#endif
-
-#ifdef USE_FFTW_FFT
-#include "demod_binary_fft_fftw.h"
-#endif
-
-#if defined USE_CUDA
+// this port is CUDA-only: resampling, FFT and harmonic summing run on the device
 #include "cuda/app/cuda_utilities.h"
 #include "cuda/app/demod_binary_cuda.h"
 #include "cuda/app/demod_binary_hs_cuda.cuh"
-#elif defined USE_OPENCL
-#include "boinc_opencl.h"
-#include "opencl/app/demod_binary_ocl.h"
-#elif defined USE_METAL
-#include "demod_binary_hs_cpu.h"
-#include "metal/demod_binary_metal.h"
-#else
-#include "demod_binary_hs_cpu.h"
-#endif
 
 #define TIME_FORMAT "%Y-%m-%dT%H:%M:%S+00:00"  // used for the result file header
 #define TIME_LENGTH 30                         // used for the result file header
@@ -173,10 +156,8 @@ int MAIN(int argc, char *argv[]) {
   BOINC_STATUS boinc_status;
 #endif
 
-#if defined USE_CUDA || defined USE_OPENCL || defined USE_METAL
-  int coprocDeviceId = -1;      // Co-processor (CUDA/OpenCL) device id
+  int coprocDeviceId = -1;      // CUDA device id
   int coprocDeviceIdGiven = 0;  // Did we get a device ID via command line (bool)?
-#endif
 
   // book-keeping
   unsigned int template_total_amount = 0;  // total amount of templates
@@ -219,8 +200,8 @@ int MAIN(int argc, char *argv[]) {
   uvar.checkpointfile = NULL;
   uvar.inputfile = NULL;
   uvar.zaplistfile = NULL;
-  sprintf(uvar.outputfile_tmp, "");
-  sprintf(uvar.checkpointfile_tmp, "");
+  uvar.outputfile_tmp[0] = '\0';
+  uvar.checkpointfile_tmp[0] = '\0';
   uvar.white = 0;
   uvar.f0 = 250.0;
   uvar.window = 1000;
@@ -407,7 +388,6 @@ int MAIN(int argc, char *argv[]) {
       }
       i += 2;
     }
-#if defined USE_CUDA || defined USE_OPENCL || defined USE_METAL
     else if ((strcmp(argv[i], "-D") == 0) || (strcmp(argv[i], "--device") == 0)) {
       long int temp = -1;
 
@@ -437,7 +417,6 @@ int MAIN(int argc, char *argv[]) {
         i += 2;
       }
     }
-#endif
     else if ((strcmp(argv[i], "-h") == 0) || (strcmp(argv[i], "--help") == 0)) {
       printf("\nUsage: %s [options], options are:\n\n", argv[0]);
       printf(" -h, --help\t\t\tboolean\tPrint this message\n");
@@ -456,9 +435,7 @@ int MAIN(int argc, char *argv[]) {
           " -H, --harmonics_log2\t\t\tint\tlog2 of the number of harmonics to sum (e.g. -H 4 will "
           "sum 2^4=16 harmonics).\n");
       printf(" -N, --Ncand\t\t\tint\tNumber of candidates to output in results file.\n");
-#if defined USE_CUDA || defined USE_OPENCL || defined USE_METAL
       printf(" -D, --device\t\tinteger\tThe GPU device ID to be used.\n");
-#endif
       printf(" -z, --debug\t\t\tboolean\tRun program in debug mode.\n");
       printf("\n");
       return (RADPUL_EMISC);
@@ -471,50 +448,18 @@ int MAIN(int argc, char *argv[]) {
 
   logMessage(info, true, "Starting data processing...\n");
 
-#if defined(BOINCIFIED) && (defined(USE_CUDA) || defined(USE_OPENCL) || defined(USE_METAL))
+#ifdef BOINCIFIED
   boinc_begin_critical_section();
-  logMessage(debug, true, "Entered critical section: CUDA/OpenCL/Metal initialization\n");
+  logMessage(debug, true, "Entered critical section: CUDA initialization\n");
 #endif
 
-#if defined USE_CUDA
   // set up CUDA device
   result = initialize_cuda(coprocDeviceIdGiven, &coprocDeviceId);
   if (result != 0) return result;
-#elif defined USE_OPENCL
-  cl_platform_id boincPlatformId = NULL;
-  cl_device_id boincDeviceId = NULL;
-  // do we run under BOINC control?
-  if (!boinc_is_standalone()) {
-    result = boinc_get_opencl_ids(&boincDeviceId, &boincPlatformId);
-    if (CL_SUCCESS == result) {
-      // BOINC takes the lead, ignore values passed manually (just to make sure)
-      coprocDeviceIdGiven = 0;
-      coprocDeviceId = -1;
-      // acquire OpenCL device determined by BOINC
-      result = initialize_ocl(coprocDeviceIdGiven, &coprocDeviceId, boincPlatformId, boincDeviceId);
-    }
-    else {
-      logMessage(error, true, "Failed to get OpenCL platform/device info from BOINC (error: %i)!\n",
-                 result);
-    }
-  }
-  else {
-    // set up OpenCL device manually or determine "best" of first platform
-    logMessage(
-        debug, true,
-        "Running in standalone mode, so we take care of OpenCL platform/device management...\n");
-    result = initialize_ocl(coprocDeviceIdGiven, &coprocDeviceId, boincPlatformId, boincDeviceId);
-  }
-  if (result != 0) return result;
-#elif defined USE_METAL
-  // set up Metal device
-  result = initialize_metal(coprocDeviceIdGiven, &coprocDeviceId);
-  if (result != 0) return result;
-#endif
 
-#if defined(BOINCIFIED) && (defined(USE_CUDA) || defined(USE_OPENCL) || defined(USE_METAL))
+#ifdef BOINCIFIED
   boinc_end_critical_section();
-  logMessage(debug, true, "Left critical section: CUDA/OpenCL/Metal initialization\n");
+  logMessage(debug, true, "Left critical section: CUDA initialization\n");
 #endif
 
   // allocate memory for candidates array of structs
@@ -1164,15 +1109,15 @@ int MAIN(int argc, char *argv[]) {
   params.nsamples_unpadded = n_unpadded;
   params.fft_size = fft_size;
 
-#if defined(BOINCIFIED) && (defined(USE_CUDA) || defined(USE_OPENCL) || defined(USE_METAL))
+#ifdef BOINCIFIED
   boinc_begin_critical_section();
-  logMessage(debug, true, "Entered critical section: CUDA/OpenCL/Metal setup phase\n");
+  logMessage(debug, true, "Entered critical section: CUDA setup phase\n");
 #endif
 
   result = set_up_resampling(t_series_dd, &t_series_resamp, &params, sinLUTsamples, cosLUTsamples);
   if (result != 0) return result;
 
-#if defined(USE_CUDA) && !defined(NDEBUG)
+#ifndef NDEBUG
   logMessage(debug, true, "CUDA global memory status (resampling set up):\n");
   printDeviceGlobalMemStatus(debug, true);
 #endif
@@ -1181,7 +1126,7 @@ int MAIN(int argc, char *argv[]) {
   result = set_up_fft(t_series_resamp, &powerspectrum, data_head.nsamples, fft_size);
   if (result != 0) return result;
 
-#if defined(USE_CUDA) && !defined(NDEBUG)
+#ifndef NDEBUG
   logMessage(debug, true, "CUDA global memory status (FFT/powerspectrum set up):\n");
   printDeviceGlobalMemStatus(debug, true);
 #endif
@@ -1191,14 +1136,14 @@ int MAIN(int argc, char *argv[]) {
       set_up_harmonic_summing(sumspec, dirty, &nr_dirty_pages, fundamental_idx_hi, harmonic_idx_hi);
   if (result != 0) return result;
 
-#if defined(USE_CUDA) && !defined(NDEBUG)
+#ifndef NDEBUG
   logMessage(debug, true, "CUDA global memory status (harmonic summing set up):\n");
   printDeviceGlobalMemStatus(debug, true);
 #endif
 
-#if defined(BOINCIFIED) && (defined(USE_CUDA) || defined(USE_OPENCL) || (defined USE_METAL))
+#ifdef BOINCIFIED
   boinc_end_critical_section();
-  logMessage(debug, true, "Left critical section: CUDA/OpenCL/Metal setup phase\n");
+  logMessage(debug, true, "Left critical section: CUDA setup phase\n");
 #endif
 
   // if in debug mode, drop information about thresholds
@@ -1253,7 +1198,7 @@ int MAIN(int argc, char *argv[]) {
     // get angular frequency
     Omega = 2.0 * M_PI / P;
 
-#if defined(USE_CUDA) && !defined(NDEBUG)
+#ifndef NDEBUG
     logMessage(debug, true, "CUDA global memory status (template iteration):\n");
     printDeviceGlobalMemStatus(debug, true);
 #endif
@@ -1273,9 +1218,9 @@ int MAIN(int argc, char *argv[]) {
     params.step_inv = step_inv;
     params.S0 = S0;
 
-#if defined(BOINCIFIED) && (defined(USE_CUDA) || defined(USE_OPENCL) || defined(USE_METAL))
+#ifdef BOINCIFIED
     boinc_begin_critical_section();
-    logMessage(debug, true, "Entered critical section: CUDA/OpenCL/Metal template iteration\n");
+    logMessage(debug, true, "Entered critical section: CUDA template iteration\n");
 #endif
 
     result = run_resampling(t_series_dd, t_series_resamp, &params);
@@ -1326,9 +1271,9 @@ thrA[4] = 0.0;
                                   fundamental_idx_hi, harmonic_idx_hi, thrA);
     if (result != 0) return result;
 
-#if defined(BOINCIFIED) && (defined(USE_CUDA) || defined(USE_OPENCL) || defined(USE_METAL))
+#ifdef BOINCIFIED
     boinc_end_critical_section();
-    logMessage(debug, true, "Left critical section: CUDA/OpenCL/Metal template iteration\n");
+    logMessage(debug, true, "Left critical section: CUDA template iteration\n");
 #endif
 
     // allocate memory for downsampled power spectrum
@@ -1494,30 +1439,22 @@ thrA[4] = 0.0;
   result = tear_down_harmonic_summing(sumspec, dirty);
   if (result != 0) return result;
 
-#if defined(USE_CUDA) && !defined(NDEBUG)
+#ifndef NDEBUG
   logMessage(debug, true, "CUDA global memory status (all torn down):\n");
   printDeviceGlobalMemStatus(debug, true);
 #endif
 
-#if defined(BOINCIFIED) && (defined(USE_CUDA) || defined(USE_OPENCL) || defined(USE_METAL))
+#ifdef BOINCIFIED
   boinc_begin_critical_section();
-  logMessage(debug, true, "Entered critical section: CUDA/OpenCL/Metal shutdown\n");
+  logMessage(debug, true, "Entered critical section: CUDA shutdown\n");
 #endif
 
-#if defined(USE_CUDA)
   // free CUDA device
   shutdown_cuda();
-#elif defined(USE_OPENCL)
-  // free OpenCL device
-  shutdown_ocl();
-#elif defined(USE_METAL)
-  // free metal device
-  shutdown_metal();
-#endif
 
-#if defined(BOINCIFIED) && (defined(USE_CUDA) || defined(USE_OPENCL) || defined(USE_METAL))
+#ifdef BOINCIFIED
   boinc_end_critical_section();
-  logMessage(debug, true, "Left critical section: CUDA/OpenCL/Metal shutdown\n");
+  logMessage(debug, true, "Left critical section: CUDA shutdown\n");
 #endif
 
 #ifdef BOINCIFIED

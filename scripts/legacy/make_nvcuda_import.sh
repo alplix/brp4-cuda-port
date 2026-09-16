@@ -5,7 +5,7 @@
 set -euo pipefail
 T=x86_64-w64-mingw32
 OUT=/root/wx/imports
-REPO=/mnt/c/Users/Alp/.zcode/workspace/default/brp4-cuda-port
+REPO="${REPO:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}"
 ZIP=/mnt/c/Users/Alp/AppData/Local/Temp/brp4_v11_inspect/einsteinbinary_BRP4_windows_x86_64_cuda_custom_v1.0.zip
 mkdir -p "$OUT" /root/wx/v10exe
 

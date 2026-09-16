@@ -9,7 +9,7 @@ DL=/root/dl_legacy
 
 # ancient CUDA installers link libxml2.so.2 (dropped after Ubuntu 20.04-ish);
 # provide the old soname via a jammy deb extract
-bash /mnt/c/Users/Alp/.zcode/workspace/default/brp4-cuda-port/scripts/legacy/setup_xml2_compat.sh
+bash "$(dirname "${BASH_SOURCE[0]}")/setup_xml2_compat.sh"
 export LD_LIBRARY_PATH=/root/xml2compat/usr/lib/x86_64-linux-gnu${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}
 
 install_cuda() { # $1=runfile $2=dest $3=extra flags

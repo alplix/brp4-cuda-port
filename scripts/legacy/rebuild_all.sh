@@ -3,7 +3,7 @@
 # relink modern/era builds with new target names, rebuild both routers,
 # then assemble all 8 packages.
 set -euo pipefail
-REPO=/mnt/c/Users/Alp/.zcode/workspace/default/brp4-cuda-port
+REPO="${REPO:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}"
 SRC=/root/build/brp4-src
 
 echo "===== sync sources ====="

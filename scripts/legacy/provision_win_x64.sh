@@ -5,7 +5,7 @@
 set -e
 T=x86_64-w64-mingw32
 P=/root/wx/deps
-REPO=/mnt/c/Users/Alp/.zcode/workspace/default/brp4-cuda-port
+REPO="${REPO:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}"
 mkdir -p $P /root/wx/src && cd /root/wx/src
 
 dl() { [ -s "$1" ] || curl -fsSL "$2" -o "$1"; }

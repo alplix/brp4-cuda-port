@@ -16,16 +16,18 @@ directly from this folder via /mnt/c) — but NEVER put mutable state in WSL `/t
 | `/opt/llvm-mingw` | llvm-mingw toolchain (aarch64-w64-mingw32 host builds) |
 | `/root/wa/{deps,imports,brp4-install-arm64}` | Windows-ARM64 deps, generated import libs, BOINC libs |
 | `/root/build/armwinbuild`, `/root/build/arm64build` | ARM64 build dirs (win / linux) |
-| `/opt/cuda118` | CUDA 11.8 redist (legacy builds only) |
+| `/opt/cuda102`, `/opt/cuda80` | CUDA 10.2 / 8.0 redists for the kepler / fermi era builds (see `legacy/`) |
 | `/root/synth_run`, `/root/ckpt_run*` | test scratch dirs |
+
+All scripts locate the repository from their own location (override with `REPO=...` in the
+environment), so the checkout may live anywhere under `/mnt/c`.
 
 ## Scripts
 - `wsl_setup.sh` — one-shot: apt deps, BOINC libs build/install, cuda129 download+extract
-- `build_linux.sh` — sync makefile/compat/version-headers from repo → brp4-src, then make
-  (modern multi-arch build; output `einsteinbinary_BRP4_linux_x86_64_cuda_custom`)
+- `build_linux.sh` — sync the whole `src/` tree from the repo → brp4-src, then make
+  (modern multi-arch build; output `einsteinbinary_BRP4_linux_x86_64_modern`; extra make
+  variables can be appended, e.g. `SASS_ARCHES=120` for a quick single-arch build)
 - `finalize_linux.sh` — strip + cuobjdump arch verification + copy to dist
-- `setup_legacy_linux.sh`, `build_legacy_linux.sh` — cuFFT-shared legacy variant
-  (`CUFFT_SHARED=1`, g++-11, sm_35+PTX; artifacts live in `dist/legacy/`)
 - **ARM64 cross (x86_64 host → aarch64, Jetson targets)**:
   - `arm_env.sh` — arm64 multiarch (ports.ubuntu.com) + qemu-user binfmt
   - `arm_deps.sh` — cross gcc-14 + `:arm64` dev libs + CUDA 12.9 aarch64 redist → `/opt/cuda129-arm64/root`
