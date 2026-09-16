@@ -3,9 +3,11 @@
 #   per-architecture single-exe packages (drop-in, no router):
 #     modern (plain name) | kepler (_kepler) | fermi (_fermi)
 #   plus the all-in-one router package (_router).
+# Plus a ninth aarch64 package if scripts/arm_build.sh has produced a binary
+# (optional: most machines won't have the cross toolchain set up).
 # VERSION selects the archive name suffix (default v1.3) and the dist dir
 # (/root/dist_<version without dots>, e.g. /root/dist_v13); the binaries
-# themselves are always picked up from the latest rebuild_all.sh output.
+# themselves are always picked up from the latest rebuild_all.sh / arm_build.sh output.
 set -euo pipefail
 REPO="${REPO:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}"
 VERSION="${VERSION:-v1.3}"
@@ -108,6 +110,21 @@ cp "$REPO/packaging/app_info.windows.xml" "$W/app_info.xml"
 cp "$REPO/packaging/app_config.xml" "$W/app_config.xml"
 cp "$REPO/packaging/readme.windows-router.txt" "$W/README.txt"
 (cd "$W" && zip -q -r "$DIST/einsteinbinary_BRP4_windows_x86_64_router_${VERSION}.zip" ./*)
+
+ARM64_L=/root/build/arm64build/einsteinbinary_BRP4_linux_aarch64_cuda_custom
+if [ -f "$ARM64_L" ]; then
+  echo "===== [9/9] linux aarch64 (Jetson) ====="
+  L="$DIST/linux-arm64"; mkdir -p "$L"
+  cp "$ARM64_L" "$L/einsteinbinary_BRP4_linux_aarch64_cuda_custom"
+  aarch64-linux-gnu-strip "$L/einsteinbinary_BRP4_linux_aarch64_cuda_custom" 2>/dev/null || true
+  chmod +x "$L/einsteinbinary_BRP4_linux_aarch64_cuda_custom"
+  cp "$REPO/packaging/app_info.linux-arm64.xml" "$L/app_info.xml"
+  cp "$REPO/packaging/app_config.xml" "$L/app_config.xml"
+  cp "$REPO/packaging/readme.linux-arm64.txt" "$L/README.txt"
+  (cd "$L" && tar czf "$DIST/einsteinbinary_BRP4_linux_aarch64_cuda_custom_${VERSION}.tar.gz" ./*)
+else
+  echo "===== [9/9] linux aarch64 skipped (no $ARM64_L; run scripts/arm_build.sh first) ====="
+fi
 
 echo "===== archives ====="
 ls -la "$DIST"/*.tar.gz "$DIST"/*.zip

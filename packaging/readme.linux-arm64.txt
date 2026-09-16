@@ -2,7 +2,7 @@ BRP4 Binary Radio Pulsar Search - CUDA Build for LINUX ARM64 (Jetson)
 ============================================================================
 Port: "BRP4 CUDA port by Alperen Yavuz" (the signature is embedded in the
 binary; visible on stderr / results header)
-Version: v1.0
+Version: v1.3
 
 What is this?
 -------------
@@ -22,6 +22,10 @@ compute_53 PTX:
 
 Note: this is pointless on ordinary ARM servers or Raspberry Pi boards -
 they have no NVIDIA GPU and no CUDA.
+
+v1.3 note: carries the same resampling-kernel correctness fix and per-
+template speedups as the v1.3 x86_64 builds (see RELEASES.md) - rebuilt
+from the same source, not just a version bump.
 
 Contents of this package
 ------------------------
