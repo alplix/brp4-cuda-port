@@ -36,11 +36,17 @@ blurbs in section **B**.
   re-verified: the router now launches the modern/kepler/fermi exes on
   Windows and Linux with identical candidate lists to direct runs, in
   automatic and `BRP4_BUILD=` override modes.
-- **All eight packages rebuilt from the v1.3 sources and verified end-to-end**
-  (extract-fresh-archive + run a full synthetic work unit, on an RTX 5070 Ti):
-  modern (native SASS), kepler and fermi (through their compute_35 /
-  compute_20 PTX JIT paths) and both routers all reach the CPU-reference
-  candidate list.
+- **All eight x86_64 packages rebuilt from the v1.3 sources and verified
+  end-to-end** (extract-fresh-archive + run a full synthetic work unit, on
+  an RTX 5070 Ti): modern (native SASS), kepler and fermi (through their
+  compute_35 / compute_20 PTX JIT paths) and both routers all reach the
+  CPU-reference candidate list.
+- **ARM64 rebuilt too** — the Jetson package was carrying the same
+  resampling bug the x86_64 builds had (it's the same source), plus its
+  build script left it stamped "v1.0" forever regardless of the actual
+  version (a checked-in placeholder header was never regenerated). Both
+  fixed; startup banner and `--help` re-verified under qemu-aarch64.
+  Functional validation on real Jetson hardware is still pending.
 - **Cleanup:** OpenCL/Metal/CPU backends, non-CUDA makefiles, cuPrintf and
   the upstream `build.sh` removed; scripts no longer depend on a hard-coded
   checkout path or pin the banner to v1.2; `test/run_cuda_test.sh` takes the
@@ -62,7 +68,7 @@ no router), or the router package that auto-picks. Install only ONE of them
 | `einsteinbinary_BRP4_linux_x86_64_kepler_v1.3.tar.gz` | GTX 600/700, GT 710–740, Titan (kepler exe + `libcufft.so.10`) |
 | `einsteinbinary_BRP4_linux_x86_64_fermi_v1.3.tar.gz` | GTX 400/500, GT 610/620/630 (fermi exe + `libcufft.so.8.0`) |
 | `einsteinbinary_BRP4_linux_x86_64_router_v1.3.tar.gz` | any NVIDIA GPU (router + all three builds + both era cuFFT libs) |
-| `einsteinbinary_BRP4_linux_aarch64_cuda_custom_v1.1.tar.gz` | ARM64 — unchanged from v1.1 (Jetson TX1→Orin, ARM servers, DGX Spark) |
+| `einsteinbinary_BRP4_linux_aarch64_cuda_custom_v1.3.tar.gz` | ARM64 — rebuilt from the v1.3 source (Jetson TX1→Orin, ARM servers, DGX Spark) |
 
 **Known limitation:** current Ter5 `sband_dns` tasks require unpublished
 newer official app options (`--pb_min` etc.) — classic `-t bank` style work
