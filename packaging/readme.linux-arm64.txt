@@ -2,7 +2,7 @@ BRP4 Binary Radio Pulsar Search - CUDA Build for LINUX ARM64 (Jetson)
 ============================================================================
 Port: "BRP4 CUDA port by Alperen Yavuz" (the signature is embedded in the
 binary; visible on stderr / results header)
-Version: v1.3
+Version: v1.3.1
 
 What is this?
 -------------
@@ -23,8 +23,8 @@ compute_53 PTX:
 Note: this is pointless on ordinary ARM servers or Raspberry Pi boards -
 they have no NVIDIA GPU and no CUDA.
 
-v1.3 note: carries the same resampling-kernel correctness fix and per-
-template speedups as the v1.3 x86_64 builds (see RELEASES.md) - rebuilt
+v1.3.1 note: carries the same resampling-kernel correctness fix and per-
+template speedups as the v1.3.1 x86_64 builds (see RELEASES.md) - rebuilt
 from the same source, not just a version bump.
 
 Contents of this package
@@ -34,14 +34,14 @@ Contents of this package
   app_config.xml                                  BOINC project-folder settings
 
 cuFFT is linked statically INTO the binary. The only runtime dependencies are
-libcuda.so.1 (provided by the NVIDIA driver / JetPack) and glibc >= 2.34.
+libcuda.so.1 (provided by the NVIDIA driver / JetPack) and glibc >= 2.29.
 
 Requirements
 ------------
   - Linux running on 64-bit ARM (aarch64) with a CUDA-capable NVIDIA GPU
   - NVIDIA driver r575 or newer (CUDA 12.9 era); on Jetson use the current
     JetPack driver stack
-  - glibc >= 2.34 (Ubuntu 22.04+ base images are fine)
+  - glibc >= 2.29 (Ubuntu 20.04+, Debian 11+ and anything newer)
 
 Installation (BOINC anonymous platform)
 ---------------------------------------

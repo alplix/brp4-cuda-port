@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # Final release verification on Windows: extracts each published zip fresh
 # and runs a complete synthetic work unit on the local GPU.
-# VERSION/DIST select which archives to verify (defaults: v1.3, /c/Users/Alp/dist).
+# VERSION/DIST select which archives to verify (defaults: v1.3.1, /c/Users/Alp/dist).
 set -u
-VERSION="${VERSION:-v1.3}"
+VERSION="${VERSION:-v1.3.1}"
 DIST="${DIST:-/c/Users/Alp/dist}"
 DATA="${DATA:-/c/Users/Alp/brp4-wintest}"
 pass=0; fail=0

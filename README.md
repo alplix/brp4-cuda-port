@@ -30,6 +30,16 @@ This project replaces that entire layer with a clean, modern implementation:
 The scientific pipeline (demodulation, harmonic summing, candidate ranking)
 is the battle-tested upstream code — the plumbing around it is brand new.
 
+## What changed in v1.3.1
+
+- **Linux / ARM64 packages work on normal distributions again.** The v1.3
+  Linux and ARM64 executables had accidentally been built on a very new distro
+  and demanded glibc 2.43, so they failed on Ubuntu 22.04/24.04 with
+  `version 'GLIBC_2.43' not found`. All Linux and ARM64 binaries are now built
+  inside an Ubuntu 20.04 chroot (glibc floor **2.29**), and the release
+  verification fails if that floor is ever exceeded. Nothing else changed -
+  Windows packages were never affected, results are identical to v1.3.
+
 ## What changed in v1.3
 
 - **Correctness fix.** The resampling and padding kernels were launched with
@@ -111,7 +121,7 @@ is the battle-tested upstream code — the plumbing around it is brand new.
   gcc-5.5 "sidecar" compilers their old front-ends require) is provisioned
   by idempotent scripts — see [Building from source](#building-from-source).
 
-## Downloads & supported platforms (v1.3)
+## Downloads & supported platforms (v1.3.1)
 
 One package per GPU family — grab the one that matches your card, drop it in.
 Not sure or running mixed GPUs? Take the router package, it auto-picks.
@@ -119,21 +129,21 @@ Install only ONE package (all declare the same app).
 
 | Package | Cards | Notes |
 |---|---|---|
-| **Windows x64** `..._modern_v1.3.zip` | GTX 900 → RTX 50 | single modern exe (CUDA 12.9), `cufft64_11.dll` included |
-| **Windows x64** `..._kepler_v1.3.zip` | GTX 600/700, GT 710–740, Titan | single kepler exe (CUDA 10.2), `cufft64_10.dll` included |
-| **Windows x64** `..._fermi_v1.3.zip` | GTX 400/500, GT 610/620/630 | single fermi exe (CUDA 8.0), `cufft64_80.dll` included |
-| **Windows x64** `..._router_v1.3.zip` | every NVIDIA GPU | router auto-picks among all three builds |
-| **Linux x86_64** `..._modern_v1.3.tar.gz` | GTX 900 → RTX 50 | single modern exe, cuFFT static |
-| **Linux x86_64** `..._kepler_v1.3.tar.gz` | GTX 600/700, GT 710–740, Titan | single kepler exe + `libcufft.so.10` |
-| **Linux x86_64** `..._fermi_v1.3.tar.gz` | GTX 400/500, GT 610/620/630 | single fermi exe + `libcufft.so.8.0` |
-| **Linux x86_64** `..._router_v1.3.tar.gz` | every NVIDIA GPU | router auto-picks among all three builds |
-| **Linux ARM64** `..._v1.3.tar.gz` | single aarch64 exe | Jetson TX1→Orin, ARM servers, DGX Spark |
+| **Windows x64** `..._modern_v1.3.1.zip` | GTX 900 → RTX 50 | single modern exe (CUDA 12.9), `cufft64_11.dll` included |
+| **Windows x64** `..._kepler_v1.3.1.zip` | GTX 600/700, GT 710–740, Titan | single kepler exe (CUDA 10.2), `cufft64_10.dll` included |
+| **Windows x64** `..._fermi_v1.3.1.zip` | GTX 400/500, GT 610/620/630 | single fermi exe (CUDA 8.0), `cufft64_80.dll` included |
+| **Windows x64** `..._router_v1.3.1.zip` | every NVIDIA GPU | router auto-picks among all three builds |
+| **Linux x86_64** `..._modern_v1.3.1.tar.gz` | GTX 900 → RTX 50 | single modern exe, cuFFT static |
+| **Linux x86_64** `..._kepler_v1.3.1.tar.gz` | GTX 600/700, GT 710–740, Titan | single kepler exe + `libcufft.so.10` |
+| **Linux x86_64** `..._fermi_v1.3.1.tar.gz` | GTX 400/500, GT 610/620/630 | single fermi exe + `libcufft.so.8.0` |
+| **Linux x86_64** `..._router_v1.3.1.tar.gz` | every NVIDIA GPU | router auto-picks among all three builds |
+| **Linux ARM64** `..._v1.3.1.tar.gz` | single aarch64 exe | Jetson TX1→Orin, ARM servers, DGX Spark |
 
 Driver floors (set by NVIDIA's support lifecycle): modern build r575+,
 kepler build 470.x (last Kepler branch), fermi build 390.x (last Fermi
 branch). The archive names carry a `_vX.Y` suffix; the binaries inside keep
 stable BOINC-facing names, and their embedded banner string reports the
-exact build (`v1.3-kepler | BRP4 CUDA port by Alperen Yavuz`).
+exact build (`v1.3.1-kepler | BRP4 CUDA port by Alperen Yavuz`).
 
 ## Installation (BOINC anonymous platform)
 

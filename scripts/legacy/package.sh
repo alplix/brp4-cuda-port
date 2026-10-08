@@ -5,17 +5,20 @@
 #   plus the all-in-one router package (_router).
 # Plus a ninth aarch64 package if scripts/arm_build.sh has produced a binary
 # (optional: most machines won't have the cross toolchain set up).
-# VERSION selects the archive name suffix (default v1.3) and the dist dir
-# (/root/dist_<version without dots>, e.g. /root/dist_v13); the binaries
+# VERSION selects the archive name suffix (default v1.3.1) and the dist dir
+# (/root/dist_<version without dots>, e.g. /root/dist_v131); the binaries
 # themselves are always picked up from the latest rebuild_all.sh / arm_build.sh output.
 set -euo pipefail
 REPO="${REPO:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}"
-VERSION="${VERSION:-v1.3}"
+VERSION="${VERSION:-v1.3.1}"
 DIST="${DIST:-/root/dist_${VERSION//./}}"
-MODERN_L=/root/build/modern_rebuild/einsteinbinary_BRP4_linux_x86_64_modern
-KEPLER_L=/root/build/era_kepler/einsteinbinary_BRP4_linux_x86_64_kepler
-FERMI_L=/root/build/era_fermi/einsteinbinary_BRP4_linux_x86_64_fermi
-ROUTER_L=/root/router_new/einsteinbinary_BRP4_linux_x86_64_router
+# LROOT: prefix for the Linux build outputs (e.g. /root/focal when they were
+# built inside the Ubuntu 20.04 chroot, see setup_focal_chroot.sh)
+LROOT="${LROOT:-}"
+MODERN_L=$LROOT/root/build/modern_rebuild/einsteinbinary_BRP4_linux_x86_64_modern
+KEPLER_L=$LROOT/root/build/era_kepler/einsteinbinary_BRP4_linux_x86_64_kepler
+FERMI_L=$LROOT/root/build/era_fermi/einsteinbinary_BRP4_linux_x86_64_fermi
+ROUTER_L=$LROOT/root/router_new/einsteinbinary_BRP4_linux_x86_64_router
 MODERN_W=/root/build/wera_modern/einsteinbinary_BRP4_windows_x86_64_modern.exe
 KEPLER_W=/root/build/wera_kepler/einsteinbinary_BRP4_windows_x86_64_kepler.exe
 FERMI_W=/root/build/wera_fermi/einsteinbinary_BRP4_windows_x86_64_fermi.exe
@@ -111,7 +114,7 @@ cp "$REPO/packaging/app_config.xml" "$W/app_config.xml"
 cp "$REPO/packaging/readme.windows-router.txt" "$W/README.txt"
 (cd "$W" && zip -q -r "$DIST/einsteinbinary_BRP4_windows_x86_64_router_${VERSION}.zip" ./*)
 
-ARM64_L=/root/build/arm64build/einsteinbinary_BRP4_linux_aarch64_cuda_custom
+ARM64_L=$LROOT/root/build/arm64build/einsteinbinary_BRP4_linux_aarch64_cuda_custom
 if [ -f "$ARM64_L" ]; then
   echo "===== [9/9] linux aarch64 (Jetson) ====="
   L="$DIST/linux-arm64"; mkdir -p "$L"

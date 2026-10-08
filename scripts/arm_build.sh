@@ -11,7 +11,7 @@ rm -f "$BSRC/erp_git_version.h" "$BSRC/svn_version.h"
 cd /root/build && mkdir -p arm64build && cd arm64build
 rm -f *.o *.fat einsteinbinary_BRP4_linux_aarch64_cuda_custom
 make -f $BSRC/Makefile.linux.cuda.arm64 EINSTEIN_RADIO_SRC=$BSRC \
-     CXX=aarch64-linux-gnu-g++-14 NVCC_HOSTCXX=/usr/bin/aarch64-linux-gnu-g++-14 \
+     CXX="${ARM_CXX:-aarch64-linux-gnu-g++-14}" NVCC_HOSTCXX="/usr/bin/${ARM_CXX:-aarch64-linux-gnu-g++-14}" \
      release -j"$(nproc)" > build.log 2>&1 || true
 grep -cE ' error|Error [0-9]' build.log || true
 tail -n 6 build.log

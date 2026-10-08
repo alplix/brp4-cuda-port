@@ -5,7 +5,7 @@ BLD=/root/build/boinc-arm64
 INST=/root/build/brp4-install-arm64
 mkdir -p $BLD $INST/lib $INST/include/boinc
 
-CXX=aarch64-linux-gnu-g++-14
+CXX="${ARM_CXX:-aarch64-linux-gnu-g++-14}"
 FLAGS="-O2 -I $SRC -I $BLD -I ../ -I . -std=gnu++11 -Wno-deprecated-declarations -fPIC"
 
 cd $SRC/lib

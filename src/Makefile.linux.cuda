@@ -87,7 +87,10 @@ LIBS  = -L$(EINSTEIN_RADIO_INSTALL)/lib
 LIBS += -Wl,-Bstatic -lboinc_api -lboinc -Wl,-Bdynamic
 # libbfd (used by the crash handler) drags in sframe/zstd/zlib, so it and
 # its dependencies sit at the tail of the static group
-LIBS += -Wl,-Bstatic -lgsl -lgslcblas -lfftw3f -lxml2 -llzma -lbfd -liberty -lsframe -lzstd -lz -Wl,-Bdynamic
+# (libsframe only exists with binutils >= 2.40; older toolchains such as the
+# Ubuntu 20.04 release chroot neither have nor need it)
+SFRAME_LIB?=$(if $(wildcard /usr/lib/x86_64-linux-gnu/libsframe.a),-lsframe,)
+LIBS += -Wl,-Bstatic -lgsl -lgslcblas -lfftw3f -lxml2 -llzma -lbfd -liberty $(SFRAME_LIB) -lzstd -lz -Wl,-Bdynamic
 # static cuFFT: use the nocallback variant - our app never registers FFT
 # callbacks, and the callback variant drags in CUDA-runtime kernel-launch
 # machinery that a pure driver-API application does not link.
@@ -125,7 +128,7 @@ TARGET ?= einsteinbinary_BRP4_linux_x86_64_modern
 
 # release banner (build scripts delete erp_git_version.h to force regeneration);
 # BUILD_FLAVOR is e.g. "-kepler" / "-fermi" for the legacy era builds
-ERP_VERSION?=v1.3
+ERP_VERSION?=v1.3.1
 BUILD_FLAVOR?=
 
 # primary role based targets

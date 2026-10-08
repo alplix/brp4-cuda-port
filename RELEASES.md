@@ -6,6 +6,49 @@ blurbs in section **B**.
 
 ---
 
+## v1.3.1 — Linux/ARM64 binaries rebuilt on an old glibc (v1.3 would not start on Ubuntu 22.04)
+
+**BRP4 CUDA port v1.3.1 — fixes "version `GLIBC_2.43` not found" on the Linux and ARM64 packages**
+
+- **Fix:** the v1.3 Linux and ARM64 executables were accidentally built on a
+  very new distribution and required **glibc 2.43** (the router 2.38), so they
+  failed to start on Ubuntu 22.04 and 24.04 (`version 'GLIBC_2.43' not found`).
+  This regressed the v1.1 promise of an old-glibc baseline. All Linux and ARM64
+  binaries are now built inside an **Ubuntu 20.04 chroot** and require only
+  **glibc 2.29** (Ubuntu 20.04+, Debian 11+, Fedora 31+ and anything newer).
+  The Windows packages were never affected.
+- **Guard:** `scripts/legacy/verify_release_linux.sh` and the new
+  `verify_release_arm64.sh` now fail if any shipped binary needs a glibc newer
+  than 2.31, so this cannot ship unnoticed again.
+- **No scientific or GPU-code change** compared to v1.3 (same resampling fix
+  and speed-ups). All nine packages were rebuilt, so every executable now
+  reports the v1.3.1 banner. Verified: all four Linux archives extract fresh and
+  run a full synthetic work unit **inside the Ubuntu 20.04 chroot on the GPU**
+  (glibc 2.31) with the same candidate list as before; the four Windows archives
+  pass the same test natively; the ARM64 archive passes its glibc check and
+  banner/`--help` under qemu-aarch64.
+- Build recipe: `scripts/legacy/setup_focal_chroot.sh`, then
+  `focal_run.sh bash /repo/scripts/legacy/build_linux_focal.sh` (Linux +
+  ARM64) and `build_windows_all.sh` (Windows), then `LROOT=/root/focal package.sh`.
+
+One package per GPU family — grab the one matching your card (drop-in,
+no router), or the router package that auto-picks. Install only ONE of them
+(all declare the same app):
+
+| Asset | Cards |
+|---|---|
+| `einsteinbinary_BRP4_windows_x86_64_modern_v1.3.1.zip` | GTX 900 → RTX 50 (modern exe + `cufft64_11.dll`) |
+| `einsteinbinary_BRP4_windows_x86_64_kepler_v1.3.1.zip` | GTX 600/700, GT 710–740, Titan (kepler exe + `cufft64_10.dll`) |
+| `einsteinbinary_BRP4_windows_x86_64_fermi_v1.3.1.zip` | GTX 400/500, GT 610/620/630 (fermi exe + `cufft64_80.dll`) |
+| `einsteinbinary_BRP4_windows_x86_64_router_v1.3.1.zip` | any NVIDIA GPU (router + all three builds + all DLLs) |
+| `einsteinbinary_BRP4_linux_x86_64_modern_v1.3.1.tar.gz` | GTX 900 → RTX 50 (modern exe, static cuFFT) |
+| `einsteinbinary_BRP4_linux_x86_64_kepler_v1.3.1.tar.gz` | GTX 600/700, GT 710–740, Titan (kepler exe + `libcufft.so.10`) |
+| `einsteinbinary_BRP4_linux_x86_64_fermi_v1.3.1.tar.gz` | GTX 400/500, GT 610/620/630 (fermi exe + `libcufft.so.8.0`) |
+| `einsteinbinary_BRP4_linux_x86_64_router_v1.3.1.tar.gz` | any NVIDIA GPU (router + all three builds + both era cuFFT libs) |
+| `einsteinbinary_BRP4_linux_aarch64_cuda_custom_v1.3.1.tar.gz` | ARM64 (Jetson TX1→Orin, ARM servers, DGX Spark) |
+
+---
+
 ## v1.3 — correctness fix + faster template loop, router repaired
 
 **BRP4 CUDA port v1.3 — results now match the upstream CPU app; ~24 % faster per template; Windows router repaired**
