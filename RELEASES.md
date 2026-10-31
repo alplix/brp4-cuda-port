@@ -16,8 +16,9 @@ blurbs in section **B**.
   `libcufft.so.10: cannot open shared object file` (Linux Kepler; Linux Fermi with `libcufft.so.8.0` likewise). All
   of those files are now referenced (`<file_ref>`), so they stay in place.
 - **Affected packages (re-released as v1.3.2):** Linux Kepler, Linux Fermi, Linux router, Windows router.
-- **Not affected, unchanged:** the modern packages (static cuFFT), the ARM64 package and the Windows Kepler/Fermi/modern
-  packages. Keep using their v1.3.1 downloads.
+- **Complete release:** all nine packages are in v1.3.2. The other five (Linux modern, ARM64, Windows modern/Kepler/Fermi)
+  are byte-identical to their v1.3.1 downloads; they were not affected by the problem and are re-attached so that one
+  release holds the whole set.
 - **No code change:** the executables, libraries and `README.txt` are byte-identical to v1.3.1; only `app_info.xml`
   changed.
 - **Already installed v1.3.1 Kepler/Fermi/router?** Add one `<file_ref>` block for each library/helper to your
@@ -28,12 +29,19 @@ blurbs in section **B**.
   completes GPU setup and writes checkpoints. The Fermi and router `app_info.xml` use the identical change and have not
   been run on hardware; the packages were checked for well-formed XML and complete contents.
 
+One package per GPU family; install only ONE of them (all declare the same app). Marked "fixed" = `app_info.xml` changed in v1.3.2.
+
 | Asset | Cards |
 |---|---|
-| `einsteinbinary_BRP4_linux_x86_64_kepler_v1.3.2.tar.gz` | GTX 600/700, GT 710–740, Titan (kepler exe + `libcufft.so.10`) |
-| `einsteinbinary_BRP4_linux_x86_64_fermi_v1.3.2.tar.gz` | GTX 400/500, GT 610/620/630 (fermi exe + `libcufft.so.8.0`) |
-| `einsteinbinary_BRP4_linux_x86_64_router_v1.3.2.tar.gz` | any NVIDIA GPU (router + all three builds + both era cuFFT libs) |
-| `einsteinbinary_BRP4_windows_x86_64_router_v1.3.2.zip` | any NVIDIA GPU (router + all three builds + all DLLs) |
+| `einsteinbinary_BRP4_windows_x86_64_modern_v1.3.2.zip` | GTX 900 → RTX 50 (modern exe + `cufft64_11.dll`) |
+| `einsteinbinary_BRP4_windows_x86_64_kepler_v1.3.2.zip` | GTX 600/700, GT 710–740, Titan (kepler exe + `cufft64_10.dll`) |
+| `einsteinbinary_BRP4_windows_x86_64_fermi_v1.3.2.zip` | GTX 400/500, GT 610/620/630 (fermi exe + `cufft64_80.dll`) |
+| `einsteinbinary_BRP4_windows_x86_64_router_v1.3.2.zip` | any NVIDIA GPU (router + all three builds + all DLLs), fixed |
+| `einsteinbinary_BRP4_linux_x86_64_modern_v1.3.2.tar.gz` | GTX 900 → RTX 50 (modern exe, static cuFFT) |
+| `einsteinbinary_BRP4_linux_x86_64_kepler_v1.3.2.tar.gz` | GTX 600/700, GT 710–740, Titan (kepler exe + `libcufft.so.10`), fixed |
+| `einsteinbinary_BRP4_linux_x86_64_fermi_v1.3.2.tar.gz` | GTX 400/500, GT 610/620/630 (fermi exe + `libcufft.so.8.0`), fixed |
+| `einsteinbinary_BRP4_linux_x86_64_router_v1.3.2.tar.gz` | any NVIDIA GPU (router + all three builds + both era cuFFT libs), fixed |
+| `einsteinbinary_BRP4_linux_aarch64_cuda_custom_v1.3.2.tar.gz` | ARM64 (Jetson TX1→Orin, ARM servers, DGX Spark) |
 
 ---
 
