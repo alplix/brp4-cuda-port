@@ -6,6 +6,37 @@ blurbs in section **B**.
 
 ---
 
+## v1.3.2 — BOINC no longer deletes the cuFFT library / helper executables (Kepler, Fermi, router packages)
+
+**BRP4 CUDA port v1.3.2 — fixes `error while loading shared libraries: libcufft.so.10` on the Kepler, Fermi and router packages**
+
+- **Fix:** in the Kepler, Fermi and router `app_info.xml` files the cuFFT library (and, in the router packages, the
+  helper executables) were declared as files but never referenced by the app version. The BOINC client treats such files
+  as unused and deletes them from the project directory, so tasks failed with exit code 127 and
+  `libcufft.so.10: cannot open shared object file` (Linux Kepler; Linux Fermi with `libcufft.so.8.0` likewise). All
+  of those files are now referenced (`<file_ref>`), so they stay in place.
+- **Affected packages (re-released as v1.3.2):** Linux Kepler, Linux Fermi, Linux router, Windows router.
+- **Not affected, unchanged:** the modern packages (static cuFFT), the ARM64 package and the Windows Kepler/Fermi/modern
+  packages. Keep using their v1.3.1 downloads.
+- **No code change:** the executables, libraries and `README.txt` are byte-identical to v1.3.1; only `app_info.xml`
+  changed.
+- **Already installed v1.3.1 Kepler/Fermi/router?** Add one `<file_ref>` block for each library/helper to your
+  `app_info.xml` (see the new file), put the library back next to the executable, restart BOINC. Or just install the
+  v1.3.2 package.
+- **Verified:** Linux Kepler on a real GeForce GT 710 (Debian 12, driver 470.256.02, BOINC 7.20.5): with the fixed
+  `app_info.xml` the library stays in the project directory and a real Einstein@Home BRP4 task starts, loads cuFFT,
+  completes GPU setup and writes checkpoints. The Fermi and router `app_info.xml` use the identical change and have not
+  been run on hardware; the packages were checked for well-formed XML and complete contents.
+
+| Asset | Cards |
+|---|---|
+| `einsteinbinary_BRP4_linux_x86_64_kepler_v1.3.2.tar.gz` | GTX 600/700, GT 710–740, Titan (kepler exe + `libcufft.so.10`) |
+| `einsteinbinary_BRP4_linux_x86_64_fermi_v1.3.2.tar.gz` | GTX 400/500, GT 610/620/630 (fermi exe + `libcufft.so.8.0`) |
+| `einsteinbinary_BRP4_linux_x86_64_router_v1.3.2.tar.gz` | any NVIDIA GPU (router + all three builds + both era cuFFT libs) |
+| `einsteinbinary_BRP4_windows_x86_64_router_v1.3.2.zip` | any NVIDIA GPU (router + all three builds + all DLLs) |
+
+---
+
 ## v1.3.1 — Linux/ARM64 binaries rebuilt on an old glibc (v1.3 would not start on Ubuntu 22.04)
 
 **BRP4 CUDA port v1.3.1 — fixes "version `GLIBC_2.43` not found" on the Linux and ARM64 packages**

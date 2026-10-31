@@ -26,5 +26,8 @@
             <file_name>einsteinbinary_BRP4_linux_x86_64_kepler</file_name>
             <main_program/>
         </file_ref>
+        <file_ref>
+            <file_name>libcufft.so.10</file_name>
+        </file_ref>
     </app_version>
 </app_info>

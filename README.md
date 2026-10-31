@@ -30,6 +30,14 @@ This project replaces that entire layer with a clean, modern implementation:
 The scientific pipeline (demodulation, harmonic summing, candidate ranking)
 is the battle-tested upstream code — the plumbing around it is brand new.
 
+## What changed in v1.3.2
+
+- **Kepler, Fermi and router packages work under BOINC again.** Their `app_info.xml` listed the cuFFT library (and the
+  router's helper executables) without referencing them, so the BOINC client deleted them from the project directory and
+  tasks failed with `error while loading shared libraries: libcufft.so.10`. The files are now referenced and stay in
+  place. Only `app_info.xml` changed; executables and libraries are identical to v1.3.1. Linux Kepler verified on a
+  real GeForce GT 710.
+
 ## What changed in v1.3.1
 
 - **Linux / ARM64 packages work on normal distributions again.** The v1.3

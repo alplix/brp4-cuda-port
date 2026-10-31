@@ -44,5 +44,23 @@
             <file_name>einsteinbinary_BRP4_windows_x86_64_router.exe</file_name>
             <main_program/>
         </file_ref>
+        <file_ref>
+            <file_name>einsteinbinary_BRP4_windows_x86_64_modern.exe</file_name>
+        </file_ref>
+        <file_ref>
+            <file_name>einsteinbinary_BRP4_windows_x86_64_kepler.exe</file_name>
+        </file_ref>
+        <file_ref>
+            <file_name>einsteinbinary_BRP4_windows_x86_64_fermi.exe</file_name>
+        </file_ref>
+        <file_ref>
+            <file_name>cufft64_11.dll</file_name>
+        </file_ref>
+        <file_ref>
+            <file_name>cufft64_10.dll</file_name>
+        </file_ref>
+        <file_ref>
+            <file_name>cufft64_80.dll</file_name>
+        </file_ref>
     </app_version>
 </app_info>
